@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: #6c757d;
+            overflow: hidden;
+        }
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>My Profile</h1>
+            <p>View and update your account information</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-admin.html">Dashboard</a></li>
+                <li><a href="profile.html">Profile</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <div class="profile-header">
+                <div class="profile-avatar" id="avatar">
+                    <span id="avatarInitials">U</span>
+                </div>
+                <div>
+                    <h2 id="profileName">User</h2>
+                    <p id="profileEmail" class="subtitle"></p>
+                    <p id="profileRole" class="subtitle"></p>
+                </div>
+            </div>
+
+            <div id="alert-container"></div>
+
+            <form id="profileForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="full_name">Full Name</label>
+                        <input type="text" id="full_name" name="full_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone_number">Phone Number</label>
+                        <input type="text" id="phone_number" name="phone_number" placeholder="+639123456789">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <textarea id="address" name="address" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn">Save Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            await loadProfile();
+        });
+
+        async function loadProfile() {
+            try {
+                const response = await fetch('/api/users/profile', { credentials: 'include' });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Failed to load profile');
+                }
+
+                const user = data.data;
+                document.getElementById('profileName').textContent = user.full_name || 'User';
+                document.getElementById('profileEmail').textContent = user.email;
+                document.getElementById('profileRole').textContent = `Role: ${user.role}`;
+
+                document.getElementById('full_name').value = user.full_name || '';
+                document.getElementById('phone_number').value = user.phone_number || '';
+                document.getElementById('address').value = user.address || '';
+
+                const initials = (user.full_name || user.email || 'U')
+                    .split(' ')
+                    .map(p => p[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2);
+                document.getElementById('avatarInitials').textContent = initials;
+
+                if (user.profile_picture) {
+                    const avatar = document.getElementById('avatar');
+                    avatar.innerHTML = `<img src="${user.profile_picture}" alt="Profile picture">`;
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('Error loading profile.', 'error');
+            }
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const body = {
+                full_name: document.getElementById('full_name').value.trim(),
+                phone_number: document.getElementById('phone_number').value.trim(),
+                address: document.getElementById('address').value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/users/update-profile', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(body)
+                });
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    showAlert('Profile updated successfully.', 'success');
+                    await loadProfile();
+                } else {
+                    showAlert(data.message || 'Failed to update profile.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        });
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
+

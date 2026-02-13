@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body {
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Welcome, <span id="userName">Administrator</span>!</h1>
+            <p>Quickly see system health, then jump into schedules, users, or analytics.</p>
+        </div>
+        
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="admin-schedules.html">Manage Schedules</a></li>
+                <li><a href="admin-users.html">Manage Users</a></li>
+                <li><a href="admin-analytics.html">Analytics</a></li>
+                <li><a href="admin-locations.html">Locations</a></li>
+                <li><a href="admin-performance.html">Performance</a></li>
+                <li><a href="profile.html">Profile</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>System Overview</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                <div class="stat-card">
+                    <div class="stat-label">Pending Submissions</div>
+                    <div class="stat-value" id="adminPendingCount">–</div>
+                    <div class="stat-sub">Requests waiting to be accepted or scheduled.</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Assigned Pickups</div>
+                    <div class="stat-value" id="adminAssignedCount">–</div>
+                    <div class="stat-sub">Submissions already assigned to collectors.</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Registered Users</div>
+                    <div class="stat-value" id="adminUserCount">–</div>
+                    <div class="stat-sub">Residents, collectors, and admins.</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Manage Barangays/Locations</h2>
+            <p>Add and manage barangays/villages for waste collection scheduling.</p>
+            <a href="admin-locations.html" class="btn" style="margin-top: 15px; display: inline-block;">Manage Locations</a>
+        </div>
+        
+        <div class="content-section">
+            <h2>User Management</h2>
+            <div class="placeholder">
+                Manage user accounts, roles, and permissions.
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Analytics & Reports</h2>
+            <div class="placeholder">
+                View collection performance metrics, waste volume data, and generate reports.
+            </div>
+        </div>
+    </div>
+    
+    <script src="../js/auth.js"></script>
+    <script>
+        // Check authentication and load user data
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+            
+            // Verify user is an admin
+            if (user.role !== 'admin') {
+                alert('Access denied. This page is for administrators only.');
+                window.location.href = '/pages/login.html';
+                return;
+            }
+            
+            // Display user name
+            document.getElementById('userName').textContent = user.full_name || 'Administrator';
+
+            // Load overview metrics
+            await Promise.all([
+                loadAdminPending(),
+                loadAdminAssigned(),
+                loadAdminUsers()
+            ]);
+        });
+
+        async function loadAdminPending() {
+            try {
+                const response = await fetch('/api/waste/pending', { credentials: 'include' });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error();
+                const submissions = data.data || [];
+                document.getElementById('adminPendingCount').textContent = submissions.length;
+            } catch {
+                document.getElementById('adminPendingCount').textContent = '–';
+            }
+        }
+
+        async function loadAdminAssigned() {
+            try {
+                const response = await fetch('/api/waste/assigned', { credentials: 'include' });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error();
+                const submissions = data.data || [];
+                document.getElementById('adminAssignedCount').textContent = submissions.length;
+            } catch {
+                document.getElementById('adminAssignedCount').textContent = '–';
+            }
+        }
+
+        async function loadAdminUsers() {
+            try {
+                const response = await fetch('/api/users', { credentials: 'include' });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error();
+                const users = data.data || [];
+                document.getElementById('adminUserCount').textContent = users.length;
+            } catch {
+                document.getElementById('adminUserCount').textContent = '–';
+            }
+        }
+    </script>
+</body>
+</html>

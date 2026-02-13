@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pending Submissions - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .filter-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .filter-tag {
+            display: inline-block;
+            padding: 5px 15px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .filter-tag.active {
+            background: #764ba2;
+        }
+        .submissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .submission-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .submission-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .waste-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .waste-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            background: #e9ecef;
+            color: #495057;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .waste-tag.biodegradable {
+            background: #d4edda;
+            color: #155724;
+        }
+        .waste-tag.recyclable {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .waste-tag.non-biodegradable {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .waste-tag.special {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .waste-tag.hazardous {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+        .submission-details {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+        .no-submissions {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 5px 5px 5px 0;
+        }
+        .btn-confirm {
+            background: #28a745;
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-confirm:hover {
+            background: #218838;
+        }
+        .btn-complete {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-complete:hover {
+            background: #0069d9;
+        }
+        .submission-actions {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Pending Waste Submissions</h1>
+            <p>Filter and view waste collection requests</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-collector.html">Back to Dashboard</a></li>
+            </ul>
+        </nav>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <h3>Filter Submissions</h3>
+            <div class="filter-row">
+                <div class="form-group">
+                    <label>Waste Types</label>
+                    <div class="filter-tags" id="wasteTypeFilters">
+                        <span class="filter-tag" data-type="all">All</span>
+                        <span class="filter-tag" data-type="biodegradable">Biodegradable</span>
+                        <span class="filter-tag" data-type="recyclable">Recyclable</span>
+                        <span class="filter-tag" data-type="non-biodegradable">Non-Biodegradable</span>
+                        <span class="filter-tag" data-type="special">Special</span>
+                        <span class="filter-tag" data-type="hazardous">Hazardous</span>
+                        <span class="filter-tag" data-type="mixed">Mixed</span>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="form-group">
+                    <label>Waste Adjectives</label>
+                    <div class="filter-tags" id="wasteAdjectiveFilters">
+                        <span class="filter-tag" data-adjective="all">All</span>
+                        <span class="filter-tag" data-adjective="wet">Wet</span>
+                        <span class="filter-tag" data-adjective="dry">Dry</span>
+                        <span class="filter-tag" data-adjective="organic">Organic</span>
+                        <span class="filter-tag" data-adjective="food waste">Food Waste</span>
+                        <span class="filter-tag" data-adjective="compostable">Compostable</span>
+                        <span class="filter-tag" data-adjective="plastic">Plastic</span>
+                        <span class="filter-tag" data-adjective="clean">Clean</span>
+                        <span class="filter-tag" data-adjective="reusable">Reusable</span>
+                        <span class="filter-tag" data-adjective="electronic">Electronic</span>
+                        <span class="filter-tag" data-adjective="hazardous">Hazardous</span>
+                        <span class="filter-tag" data-adjective="toxic">Toxic</span>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="barangayFilter">Barangay</label>
+                    <select id="barangayFilter" style="width: 100%;">
+                        <option value="">All Barangays</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="applyFilters()" class="btn btn-small">Apply Filters</button>
+            <button onclick="clearFilters()" class="btn btn-small btn-secondary">Clear Filters</button>
+        </div>
+
+        <div class="content-section">
+            <h2>Available Pending Submissions</h2>
+            <div id="submissionsContainer">
+                <div class="no-submissions">
+                    <p>Loading submissions...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>My Assigned Pickups</h2>
+            <div id="assignedContainer">
+                <div class="no-submissions">
+                    <p>No assigned pickups yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        let currentFilters = {
+            waste_types: [],
+            waste_adjectives: [],
+            barangay_id: null
+        };
+
+        // Check authentication
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            if (user.role !== 'collector' && user.role !== 'admin') {
+                alert('Access denied. Collectors and admins only.');
+                window.location.href = '/pages/dashboard-resident.html';
+                return;
+            }
+
+            await loadBarangays();
+            await loadSubmissions();
+            await loadAssignedSubmissions();
+            setupFilterTags();
+        });
+
+        function setupFilterTags() {
+            // Setup waste type filters
+            const wasteTypeTags = document.querySelectorAll('#wasteTypeFilters .filter-tag');
+            wasteTypeTags.forEach(tag => {
+                tag.addEventListener('click', function() {
+                    const type = this.dataset.type;
+                    
+                    if (type === 'all') {
+                        // Toggle all waste types
+                        wasteTypeTags.forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        currentFilters.waste_types = [];
+                    } else {
+                        // Toggle individual tag
+                        this.classList.toggle('active');
+                        const allTag = document.querySelector('#wasteTypeFilters .filter-tag[data-type="all"]');
+                        allTag.classList.remove('active');
+                        
+                        // Update filter array
+                        if (this.classList.contains('active')) {
+                            if (!currentFilters.waste_types.includes(type)) {
+                                currentFilters.waste_types.push(type);
+                            }
+                        } else {
+                            currentFilters.waste_types = currentFilters.waste_types.filter(t => t !== type);
+                        }
+                    }
+                });
+            });
+
+            // Setup waste adjective filters
+            const wasteAdjectiveTags = document.querySelectorAll('#wasteAdjectiveFilters .filter-tag');
+            wasteAdjectiveTags.forEach(tag => {
+                tag.addEventListener('click', function() {
+                    const adjective = this.dataset.adjective;
+                    
+                    if (adjective === 'all') {
+                        // Toggle all adjectives
+                        wasteAdjectiveTags.forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        currentFilters.waste_adjectives = [];
+                    } else {
+                        // Toggle individual tag
+                        this.classList.toggle('active');
+                        const allTag = document.querySelector('#wasteAdjectiveFilters .filter-tag[data-adjective="all"]');
+                        allTag.classList.remove('active');
+                        
+                        // Update filter array
+                        if (this.classList.contains('active')) {
+                            if (!currentFilters.waste_adjectives.includes(adjective)) {
+                                currentFilters.waste_adjectives.push(adjective);
+                            }
+                        } else {
+                            currentFilters.waste_adjectives = currentFilters.waste_adjectives.filter(a => a !== adjective);
+                        }
+                    }
+                });
+            });
+        }
+
+        async function loadBarangays() {
+            try {
+                const response = await fetch('/api/locations', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('barangayFilter');
+                    
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(location => {
+                            const option = document.createElement('option');
+                            option.value = location.location_id;
+                            option.textContent = `${location.barangay_name}, ${location.municipality}`;
+                            select.appendChild(option);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading barangays:', error);
+            }
+        }
+
+        async function loadSubmissions() {
+            try {
+                // Build query string
+                const params = new URLSearchParams();
+                if (currentFilters.waste_types.length > 0) {
+                    currentFilters.waste_types.forEach(type => {
+                        params.append('waste_types', type);
+                    });
+                }
+                if (currentFilters.waste_adjectives.length > 0) {
+                    currentFilters.waste_adjectives.forEach(adjective => {
+                        params.append('waste_adjectives', adjective);
+                    });
+                }
+                if (currentFilters.barangay_id) {
+                    params.append('barangay_id', currentFilters.barangay_id);
+                }
+
+                const response = await fetch(`/api/waste/pending?${params.toString()}`, {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displaySubmissions(data.data || []);
+                } else {
+                    document.getElementById('submissionsContainer').innerHTML = 
+                        '<div class="no-submissions"><p>Error loading submissions. Please try again.</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading submissions:', error);
+                document.getElementById('submissionsContainer').innerHTML = 
+                    '<div class="no-submissions"><p>Error loading submissions. Please try again.</p></div>';
+            }
+        }
+
+        async function loadAssignedSubmissions() {
+            try {
+                const response = await fetch('/api/waste/assigned', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayAssignedSubmissions(data.data || []);
+                } else {
+                    document.getElementById('assignedContainer').innerHTML =
+                        '<div class="no-submissions"><p>Error loading assigned pickups. Please try again.</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading assigned submissions:', error);
+                document.getElementById('assignedContainer').innerHTML =
+                    '<div class="no-submissions"><p>Error loading assigned pickups. Please try again.</p></div>';
+            }
+        }
+
+        function displaySubmissions(submissions) {
+            const container = document.getElementById('submissionsContainer');
+
+            if (submissions.length === 0) {
+                container.innerHTML = `
+                    <div class="no-submissions">
+                        <p>No pending submissions found.</p>
+                        <p style="font-size: 12px; color: #999;">Try adjusting your filters.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'submissions-grid';
+
+            submissions.forEach(submission => {
+                const card = document.createElement('div');
+                card.className = 'submission-card';
+
+                const imageHtml = submission.image_path ? 
+                    `<img src="${submission.image_path}" alt="Waste image" class="submission-image">` : 
+                    '<div style="height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 5px;">No Image</div>';
+
+                // Parse waste types
+                let wasteTypes = [];
+                if (submission.waste_types) {
+                    if (typeof submission.waste_types === 'string') {
+                        try {
+                            wasteTypes = JSON.parse(submission.waste_types);
+                        } catch (e) {
+                            wasteTypes = [];
+                        }
+                    } else if (Array.isArray(submission.waste_types)) {
+                        wasteTypes = submission.waste_types;
+                    }
+                } else if (submission.confirmed_category) {
+                    wasteTypes = [submission.confirmed_category];
+                }
+
+                // Parse waste adjectives
+                let wasteAdjectives = [];
+                if (submission.waste_adjectives) {
+                    if (typeof submission.waste_adjectives === 'string') {
+                        try {
+                            wasteAdjectives = JSON.parse(submission.waste_adjectives);
+                        } catch (e) {
+                            wasteAdjectives = [];
+                        }
+                    } else if (Array.isArray(submission.waste_adjectives)) {
+                        wasteAdjectives = submission.waste_adjectives;
+                    }
+                } else if (submission.waste_adjective) {
+                    wasteAdjectives = [submission.waste_adjective];
+                }
+
+                const wasteTagsHtml = wasteTypes.length > 0 
+                    ? wasteTypes.map(type => `<span class="waste-tag ${type}">${type}</span>`).join('')
+                    : '<span class="waste-tag">Not specified</span>';
+
+                const adjectiveTagsHtml = wasteAdjectives.length > 0 
+                    ? wasteAdjectives.map(adj => `<span style="display: inline-block; padding: 3px 10px; background: #d1ecf1; color: #0c5460; border-radius: 15px; font-size: 11px; margin: 2px;">${adj}</span>`).join('')
+                    : '<span style="display: inline-block; padding: 3px 10px; background: #e9ecef; color: #495057; border-radius: 15px; font-size: 11px; margin: 2px;">Not specified</span>';
+
+                card.innerHTML = `
+                    ${imageHtml}
+                    <div class="waste-tags">
+                        ${wasteTagsHtml}
+                    </div>
+                    <div class="submission-details" style="margin-top: 10px;">
+                        <strong>Adjectives:</strong><br>
+                        <div style="margin-top: 5px;">${adjectiveTagsHtml}</div>
+                    </div>
+                    ${submission.barangay_name ? `
+                    <div class="submission-details">
+                        <strong>Location:</strong> ${submission.barangay_name}, ${submission.municipality || ''}
+                    </div>
+                    ` : ''}
+                    ${submission.address_description ? `
+                    <div class="submission-details">
+                        <strong>Address:</strong> ${submission.address_description}
+                    </div>
+                    ` : ''}
+                    <div class="submission-details">
+                        <strong>Submitted by:</strong> ${submission.full_name || 'Unknown'}
+                    </div>
+                    <div class="submission-details">
+                        <strong>Submitted:</strong> ${new Date(submission.created_at).toLocaleDateString()}
+                    </div>
+                    ${submission.phone_number ? `
+                    <div class="submission-details">
+                        <strong>Contact:</strong> ${submission.phone_number}
+                    </div>
+                    ` : ''}
+                    <div class="submission-actions">
+                        <button class="btn-confirm" onclick="confirmSubmission(${submission.submission_id})">Confirm Pickup</button>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(grid);
+        }
+
+        function displayAssignedSubmissions(submissions) {
+            const container = document.getElementById('assignedContainer');
+
+            if (submissions.length === 0) {
+                container.innerHTML = `
+                    <div class="no-submissions">
+                        <p>No assigned pickups yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'submissions-grid';
+
+            submissions.forEach(submission => {
+                const card = document.createElement('div');
+                card.className = 'submission-card';
+
+                const imageHtml = submission.image_path ?
+                    `<img src="${submission.image_path}" alt="Waste image" class="submission-image">` :
+                    '<div style="height: 200px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border-radius: 5px;">No Image</div>';
+
+                let wasteTypes = [];
+                if (submission.waste_types) {
+                    if (typeof submission.waste_types === 'string') {
+                        try {
+                            wasteTypes = JSON.parse(submission.waste_types);
+                        } catch (e) {
+                            wasteTypes = [];
+                        }
+                    } else if (Array.isArray(submission.waste_types)) {
+                        wasteTypes = submission.waste_types;
+                    }
+                } else if (submission.confirmed_category || submission.predicted_category) {
+                    wasteTypes = [submission.confirmed_category || submission.predicted_category];
+                }
+
+                let wasteAdjectives = [];
+                if (submission.waste_adjectives) {
+                    if (typeof submission.waste_adjectives === 'string') {
+                        try {
+                            wasteAdjectives = JSON.parse(submission.waste_adjectives);
+                        } catch (e) {
+                            wasteAdjectives = [];
+                        }
+                    } else if (Array.isArray(submission.waste_adjectives)) {
+                        wasteAdjectives = submission.waste_adjectives;
+                    }
+                } else if (submission.waste_adjective) {
+                    wasteAdjectives = [submission.waste_adjective];
+                }
+
+                const wasteTagsHtml = wasteTypes.length > 0
+                    ? wasteTypes.map(type => `<span class="waste-tag ${type}">${type}</span>`).join('')
+                    : '<span class="waste-tag">Not specified</span>';
+
+                const adjectiveTagsHtml = wasteAdjectives.length > 0
+                    ? wasteAdjectives.map(adj => `<span style="display: inline-block; padding: 3px 10px; background: #d1ecf1; color: #0c5460; border-radius: 15px; font-size: 11px; margin: 2px;">${adj}</span>`).join('')
+                    : '<span style="display: inline-block; padding: 3px 10px; background: #e9ecef; color: #495057; border-radius: 15px; font-size: 11px; margin: 2px;">Not specified</span>';
+
+                const statusText = (submission.collection_status || 'scheduled').charAt(0).toUpperCase() +
+                    (submission.collection_status || 'scheduled').slice(1);
+
+                const canComplete = submission.collection_status === 'scheduled';
+
+                card.innerHTML = `
+                    ${imageHtml}
+                    <div class="waste-tags">
+                        ${wasteTagsHtml}
+                    </div>
+                    <div class="submission-details">
+                        <strong>Status:</strong> ${statusText}
+                    </div>
+                    <div class="submission-details" style="margin-top: 10px;">
+                        <strong>Adjectives:</strong><br>
+                        <div style="margin-top: 5px;">${adjectiveTagsHtml}</div>
+                    </div>
+                    ${submission.barangay_name ? `
+                    <div class="submission-details">
+                        <strong>Location:</strong> ${submission.barangay_name}, ${submission.municipality || ''}
+                    </div>
+                    ` : ''}
+                    ${submission.address_description ? `
+                    <div class="submission-details">
+                        <strong>Address:</strong> ${submission.address_description}
+                    </div>
+                    ` : ''}
+                    <div class="submission-details">
+                        <strong>Submitted by:</strong> ${submission.full_name || 'Unknown'}
+                    </div>
+                    <div class="submission-details">
+                        <strong>Submitted:</strong> ${new Date(submission.created_at).toLocaleDateString()}
+                    </div>
+                    <div class="submission-actions">
+                        ${canComplete ? `<button class="btn-complete" onclick="completeSubmission(${submission.submission_id})">✓ Mark as Picked Up</button>` : ''}
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(grid);
+        }
+
+        async function confirmSubmission(submissionId) {
+            if (!confirm('Accept this submission for pickup?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/waste/${submissionId}/accept`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok && data.status === 'success') {
+                    alert('Submission accepted. It has been added to your assigned pickups.');
+                    await loadSubmissions();
+                    await loadAssignedSubmissions();
+                } else {
+                    alert(data.message || 'Failed to accept submission. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error accepting submission:', error);
+                alert('An error occurred while accepting. Please try again.');
+            }
+        }
+
+        async function completeSubmission(submissionId) {
+            if (!confirm('Mark this submission as picked up?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/waste/${submissionId}/complete`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok && data.status === 'success') {
+                    alert('Submission marked as collected.');
+                    await loadAssignedSubmissions();
+                } else {
+                    alert(data.message || 'Failed to mark as collected. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error completing submission:', error);
+                alert('An error occurred while updating. Please try again.');
+            }
+        }
+
+        function applyFilters() {
+            const barangaySelect = document.getElementById('barangayFilter');
+            currentFilters.barangay_id = barangaySelect.value || null;
+            loadSubmissions();
+        }
+
+        function clearFilters() {
+            currentFilters = {
+                waste_types: [],
+                waste_adjectives: [],
+                barangay_id: null
+            };
+            document.querySelectorAll('.filter-tag').forEach(tag => tag.classList.remove('active'));
+            document.querySelector('#wasteTypeFilters .filter-tag[data-type="all"]').classList.add('active');
+            document.querySelector('#wasteAdjectiveFilters .filter-tag[data-adjective="all"]').classList.add('active');
+            document.getElementById('barangayFilter').value = '';
+            loadSubmissions();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collector Dashboard - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body {
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Welcome, <span id="userName">Collector</span>!</h1>
+            <p>See today’s assigned pickups and upcoming collections in one place.</p>
+        </div>
+        
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="#routes">Today's Routes</a></li>
+                <li><a href="#schedule">Upcoming Collections</a></li>
+                <li><a href="collector-submissions.html">Waste Submissions</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section" id="collectorSummary">
+            <h2>Today at a Glance</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                <div class="stat-card">
+                    <div class="stat-label">Stops Today</div>
+                    <div class="stat-value" id="collectorStopsToday">–</div>
+                    <div class="stat-sub">Scheduled pickups assigned to you for today.</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Upcoming Assignments</div>
+                    <div class="stat-value" id="collectorUpcomingCount">–</div>
+                    <div class="stat-sub">Future collections already assigned to you.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section" id="routes">
+            <h2>Today's Collection Routes</h2>
+            <div id="routesContainer">
+                <div class="placeholder">
+                    Loading your collection routes for today...
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>Upcoming Collections</h2>
+            <div id="scheduleContainer">
+                <div class="placeholder">
+                    Loading your upcoming collection schedule...
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Pending Waste Submissions</h2>
+            <p>View and filter waste collection requests by type and location.</p>
+            <a href="collector-submissions.html" class="btn" style="margin-top: 15px; display: inline-block;">View All Submissions</a>
+        </div>
+    </div>
+    
+    <script src="../js/auth.js"></script>
+    <script>
+        // Check authentication and load user data
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            // Verify user is a collector or admin
+            if (user.role !== 'collector' && user.role !== 'admin') {
+                alert('Access denied. This page is for collectors only.');
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            // Display user name
+            document.getElementById('userName').textContent = user.full_name || 'Collector';
+
+            // Load collector's routes, schedule, and summary
+            await Promise.all([
+                loadTodaysRoutes(),
+                loadUpcomingCollections()
+            ]);
+        });
+
+        // Load today's routes for the collector
+        async function loadTodaysRoutes() {
+            try {
+                const response = await fetch('/api/waste/assigned', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.data && data.data.length > 0) {
+                        // Filter for today's routes only
+                        const today = new Date().toISOString().split('T')[0];
+                        const todaysRoutes = data.data.filter(submission => {
+                            return submission.scheduled_date &&
+                                   new Date(submission.scheduled_date).toISOString().split('T')[0] === today &&
+                                   submission.collection_status === 'scheduled';
+                        });
+
+                        if (todaysRoutes.length > 0) {
+                            document.getElementById('collectorStopsToday').textContent = todaysRoutes.length;
+                            displayRoutes(todaysRoutes);
+                        } else {
+                            document.getElementById('collectorStopsToday').textContent = '0';
+                            document.getElementById('routesContainer').innerHTML = `
+                                <div class="placeholder">
+                                    No collection routes assigned for today. Check back tomorrow or view upcoming collections.
+                                </div>
+                            `;
+                        }
+                    } else {
+                        document.getElementById('routesContainer').innerHTML = `
+                            <div class="placeholder">
+                                No assigned collections found. Check back later for new assignments.
+                            </div>
+                        `;
+                    }
+                } else {
+                    document.getElementById('routesContainer').innerHTML = `
+                        <div class="placeholder">
+                            Failed to load routes. Please try again later.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading routes:', error);
+                document.getElementById('routesContainer').innerHTML = `
+                    <div class="placeholder">
+                        Error loading routes. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+        // Load upcoming collections for the collector
+        async function loadUpcomingCollections() {
+            try {
+                const response = await fetch('/api/waste/assigned', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.data && data.data.length > 0) {
+                        // Filter for upcoming collections (today and future)
+                        const today = new Date().toISOString().split('T')[0];
+                        const upcomingCollections = data.data.filter(submission => {
+                            return submission.scheduled_date &&
+                                   new Date(submission.scheduled_date).toISOString().split('T')[0] >= today;
+                        }).sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
+
+                        if (upcomingCollections.length > 0) {
+                            document.getElementById('collectorUpcomingCount').textContent = upcomingCollections.length;
+                            displayUpcomingCollections(upcomingCollections);
+                        } else {
+                            document.getElementById('collectorUpcomingCount').textContent = '0';
+                            document.getElementById('scheduleContainer').innerHTML = `
+                                <div class="placeholder">
+                                    No upcoming collections scheduled. Check back later for new assignments.
+                                </div>
+                            `;
+                        }
+                    } else {
+                        document.getElementById('scheduleContainer').innerHTML = `
+                            <div class="placeholder">
+                                No assigned collections found. Check back later for new assignments.
+                            </div>
+                        `;
+                    }
+                } else {
+                    document.getElementById('scheduleContainer').innerHTML = `
+                        <div class="placeholder">
+                            Failed to load schedule. Please try again later.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+                document.getElementById('scheduleContainer').innerHTML = `
+                    <div class="placeholder">
+                        Error loading schedule. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+        // Display routes in the container
+        function displayRoutes(routes) {
+            const container = document.getElementById('routesContainer');
+
+            let routesHtml = '<div class="routes-list">';
+
+            routes.forEach(route => {
+                const formattedDate = route.scheduled_date ?
+                    new Date(route.scheduled_date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    }) : 'Not scheduled';
+
+                // Determine waste types
+                let wasteTypes = [];
+                if (route.waste_types) {
+                    if (typeof route.waste_types === 'string') {
+                        try {
+                            wasteTypes = JSON.parse(route.waste_types);
+                        } catch (e) {
+                            wasteTypes = [];
+                        }
+                    } else if (Array.isArray(route.waste_types)) {
+                        wasteTypes = route.waste_types;
+                    }
+                } else if (route.confirmed_category || route.predicted_category) {
+                    wasteTypes = [route.confirmed_category || route.predicted_category];
+                }
+
+                const wasteTypesHtml = wasteTypes.length > 0
+                    ? wasteTypes.map(type => `<span class="waste-tag ${type}">${type}</span>`).join('')
+                    : '<span class="waste-tag">Not specified</span>';
+
+                routesHtml += `
+                    <div class="route-item">
+                        <div class="route-info">
+                            <h3>${route.full_name || 'Unknown Resident'}</h3>
+                            <p><strong>Address:</strong> ${route.address_description || 'Address not provided'}</p>
+                            <p><strong>Location:</strong> ${route.barangay_name || ''}, ${route.municipality || ''}</p>
+                            <p><strong>Scheduled:</strong> ${formattedDate}</p>
+                            <div class="waste-types">
+                                <strong>Waste Types:</strong> ${wasteTypesHtml}
+                            </div>
+                        </div>
+                        <div class="route-actions">
+                            <a href="/pages/collector-submissions.html" class="btn btn-small">View Details</a>
+                        </div>
+                    </div>
+                `;
+            });
+
+            routesHtml += '</div>';
+            container.innerHTML = routesHtml;
+        }
+
+        // Display upcoming collections in the container
+        function displayUpcomingCollections(collections) {
+            const container = document.getElementById('scheduleContainer');
+
+            let scheduleHtml = '<div class="schedule-list">';
+
+            collections.forEach(collection => {
+                const formattedDate = collection.scheduled_date ?
+                    new Date(collection.scheduled_date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    }) : 'Not scheduled';
+
+                // Determine waste types
+                let wasteTypes = [];
+                if (collection.waste_types) {
+                    if (typeof collection.waste_types === 'string') {
+                        try {
+                            wasteTypes = JSON.parse(collection.waste_types);
+                        } catch (e) {
+                            wasteTypes = [];
+                        }
+                    } else if (Array.isArray(collection.waste_types)) {
+                        wasteTypes = collection.waste_types;
+                    }
+                } else if (collection.confirmed_category || collection.predicted_category) {
+                    wasteTypes = [collection.confirmed_category || collection.predicted_category];
+                }
+
+                const wasteTypesHtml = wasteTypes.length > 0
+                    ? wasteTypes.map(type => `<span class="waste-tag ${type}">${type}</span>`).join('')
+                    : '<span class="waste-tag">Not specified</span>';
+
+                scheduleHtml += `
+                    <div class="schedule-item">
+                        <div class="schedule-day">
+                            <h3>${collection.collection_status === 'scheduled' ? 'Scheduled' : collection.collection_status}</h3>
+                            <p class="next-date">${formattedDate}</p>
+                        </div>
+                        <div class="schedule-details">
+                            <p><strong>Resident:</strong> ${collection.full_name || 'Unknown'}</p>
+                            <p><strong>Location:</strong> ${collection.barangay_name || ''}, ${collection.municipality || ''}</p>
+                            <div class="waste-types">
+                                <strong>Waste Types:</strong> ${wasteTypesHtml}
+                            </div>
+                        </div>
+                        <div class="schedule-actions">
+                            <a href="/pages/collector-submissions.html" class="btn btn-small">Manage</a>
+                        </div>
+                    </div>
+                `;
+            });
+
+            scheduleHtml += '</div>';
+            container.innerHTML = scheduleHtml;
+        }
+    </script>
+</body>
+</html>

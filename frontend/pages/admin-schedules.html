@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Schedules - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .schedules-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .schedules-table th,
+        .schedules-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .schedules-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .schedules-table tr:hover {
+            background: #f8f9fa;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .btn-small {
+            padding: 5px 15px;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Manage Collection Schedules</h1>
+            <p>Create and manage collection schedules per barangay</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
+                <li><a href="admin-schedules.html">Schedules</a></li>
+                <li><a href="admin-locations.html">Locations</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>Create New Schedule</h2>
+            <div id="alert-container"></div>
+            <form id="scheduleForm" class="add-location-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="locationSelect">Barangay / Location *</label>
+                        <select id="locationSelect" required>
+                            <option value="">Loading locations...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="collectionDay">Collection Day *</label>
+                        <select id="collectionDay" required>
+                            <option value="">Select day</option>
+                            <option>Monday</option>
+                            <option>Tuesday</option>
+                            <option>Wednesday</option>
+                            <option>Thursday</option>
+                            <option>Friday</option>
+                            <option>Saturday</option>
+                            <option>Sunday</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="collectionTime">Collection Time *</label>
+                        <input type="time" id="collectionTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="wasteType">Waste Type *</label>
+                        <select id="wasteType" required>
+                            <option value="mixed">Mixed</option>
+                            <option value="biodegradable">Biodegradable</option>
+                            <option value="non-biodegradable">Non-biodegradable</option>
+                            <option value="recyclable">Recyclable</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Also apply this schedule to (optional)</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px;">
+                        <label><input type="checkbox" class="extra-day" value="Monday"> Monday</label>
+                        <label><input type="checkbox" class="extra-day" value="Tuesday"> Tuesday</label>
+                        <label><input type="checkbox" class="extra-day" value="Wednesday"> Wednesday</label>
+                        <label><input type="checkbox" class="extra-day" value="Thursday"> Thursday</label>
+                        <label><input type="checkbox" class="extra-day" value="Friday"> Friday</label>
+                        <label><input type="checkbox" class="extra-day" value="Saturday"> Saturday</label>
+                        <label><input type="checkbox" class="extra-day" value="Sunday"> Sunday</label>
+                    </div>
+                    <small style="color:#666;">We’ll create additional schedules with the same time and waste type for the days you check.</small>
+                </div>
+                <button type="submit" class="btn">Create Schedule</button>
+            </form>
+        </div>
+
+        <div class="content-section">
+            <h2>Existing Schedules</h2>
+            <div class="form-group">
+                <label for="filterLocation">Filter by Location</label>
+                <select id="filterLocation">
+                    <option value="">All locations</option>
+                </select>
+            </div>
+            <table class="schedules-table">
+                <thead>
+                    <tr>
+                        <th>Barangay</th>
+                        <th>Municipality</th>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Waste Type</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="schedulesTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        let allLocations = [];
+        let allSchedules = [];
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            if (user.role !== 'admin') {
+                alert('Access denied. Admin only.');
+                window.location.href = '/pages/dashboard-resident.html';
+                return;
+            }
+
+            await loadLocations();
+            await loadSchedules();
+        });
+
+        async function loadLocations() {
+            try {
+                const response = await fetch('/api/locations', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load locations');
+                const data = await response.json();
+                allLocations = data.data || [];
+
+                const selects = [document.getElementById('locationSelect'), document.getElementById('filterLocation')];
+                selects.forEach(select => {
+                    select.innerHTML = select.id === 'filterLocation'
+                        ? '<option value="">All locations</option>'
+                        : '<option value="">Select location</option>';
+
+                    allLocations.forEach(loc => {
+                        const option = document.createElement('option');
+                        option.value = loc.location_id;
+                        option.textContent = `${loc.barangay_name}, ${loc.municipality}`;
+                        select.appendChild(option);
+                    });
+                });
+            } catch (error) {
+                console.error(error);
+                showAlert('Error loading locations. Please refresh the page.', 'error');
+            }
+        }
+
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedules', { credentials: 'include' });
+                if (!response.ok) throw new Error('Failed to load schedules');
+                const data = await response.json();
+                allSchedules = data.data || [];
+                renderSchedules();
+            } catch (error) {
+                console.error(error);
+                const tbody = document.getElementById('schedulesTableBody');
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Error loading schedules</td></tr>';
+            }
+        }
+
+        function renderSchedules() {
+            const tbody = document.getElementById('schedulesTableBody');
+            const filterLocationId = document.getElementById('filterLocation').value;
+
+            const filtered = allSchedules.filter(s => 
+                !filterLocationId || String(s.location_id) === String(filterLocationId)
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No schedules found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(s => `
+                <tr>
+                    <td>${s.barangay_name || ''}</td>
+                    <td>${s.municipality || ''}</td>
+                    <td>${s.collection_day}</td>
+                    <td>${s.collection_time}</td>
+                    <td>${s.waste_type}</td>
+                    <td>${s.is_active ? 'Yes' : 'No'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="toggleScheduleActive(${s.schedule_id}, ${s.is_active ? 'false' : 'true'})">
+                            ${s.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button class="btn btn-secondary btn-small btn-danger" onclick="deleteSchedule(${s.schedule_id})">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('filterLocation').addEventListener('change', renderSchedules);
+
+        document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const location_id = document.getElementById('locationSelect').value;
+            const collection_day = document.getElementById('collectionDay').value;
+            const collection_time = document.getElementById('collectionTime').value;
+            const waste_type = document.getElementById('wasteType').value;
+            const extraDays = Array.from(document.querySelectorAll('.extra-day:checked')).map(cb => cb.value);
+
+            if (!location_id || !collection_day || !collection_time || !waste_type) {
+                showAlert('Please fill in all required fields.', 'error');
+                return;
+            }
+
+            try {
+                // Helper to create a schedule for a specific day
+                const createForDay = async (day) => {
+                    const response = await fetch('/api/schedules', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            location_id,
+                            collection_day: day,
+                            collection_time,
+                            waste_type
+                        })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || data.status !== 'success') {
+                        throw new Error(data.message || `Failed to create schedule for ${day}`);
+                    }
+                };
+
+                // Always create for the primary selected day
+                await createForDay(collection_day);
+
+                // Then create for any extra selected days (avoiding duplicates)
+                const uniqueExtraDays = extraDays.filter(d => d !== collection_day);
+                for (const day of uniqueExtraDays) {
+                    await createForDay(day);
+                }
+
+                showAlert('Schedule(s) created successfully.', 'success');
+                e.target.reset();
+                await loadSchedules();
+            } catch (error) {
+                console.error(error);
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        });
+
+        async function toggleScheduleActive(scheduleId, newActive) {
+            if (!confirm('Are you sure you want to change this schedule status?')) return;
+
+            try {
+                const response = await fetch(`/api/schedules/${scheduleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ is_active: newActive })
+                });
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    showAlert('Schedule updated successfully.', 'success');
+                    await loadSchedules();
+                } else {
+                    showAlert(data.message || 'Failed to update schedule.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        }
+
+        async function deleteSchedule(scheduleId) {
+            if (!confirm('Delete this schedule? This cannot be undone.')) return;
+
+            try {
+                const response = await fetch(`/api/schedules/${scheduleId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    showAlert('Schedule deleted successfully.', 'success');
+                    await loadSchedules();
+                } else {
+                    showAlert(data.message || 'Failed to delete schedule.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
+

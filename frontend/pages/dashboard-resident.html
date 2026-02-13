@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resident Dashboard - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body {
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Welcome, <span id="userName">Resident</span>!</h1>
+            <p>Track your next pickup and recent waste submissions at a glance.</p>
+        </div>
+        
+        <nav class="nav-menu">
+            <ul>
+                <!-- These links navigate to the dedicated pages for each feature -->
+                <li><a href="#" onclick="scrollToSection('scheduleSection')">View Schedule</a></li>
+                <li><a href="submit-waste.html">Submit Waste</a></li>
+                <li><a href="my-submissions.html">My Submissions</a></li>
+                <li><a href="#" onclick="showProfileSection()">Profile</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section" id="summarySection">
+            <h2>At a Glance</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                <div class="stat-card">
+                    <div class="stat-label">Next Pickup</div>
+                    <div class="stat-value" id="nextPickupValue">–</div>
+                    <div class="stat-sub" id="nextPickupSub">We’ll show your next collection date here.</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">My Requests</div>
+                    <div class="stat-value" id="myRequestsCount">–</div>
+                    <div class="stat-sub" id="myRequestsSub">Total waste collection requests you’ve submitted.</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pending Pickups</div>
+                    <div class="stat-value" id="pendingRequestsCount">–</div>
+                    <div class="stat-sub">Requests still waiting to be collected.</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-section" id="scheduleSection">
+            <h2>Upcoming Collection Schedule</h2>
+            <div id="scheduleContainer">
+                <div class="placeholder">
+                    Loading your collection schedule...
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section" id="profileSection" style="display: none;">
+            <h2>User Profile</h2>
+            <div id="profileContainer">
+                <div class="placeholder">
+                    Loading your profile information...
+                </div>
+            </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Submit Waste Collection Request</h2>
+            <p>Upload a photo of your waste and we’ll help categorize it for proper collection.</p>
+            <a href="submit-waste.html" class="btn" style="margin-top: 15px; display: inline-block;">Submit Waste Now</a>
+        </div>
+        
+        <div class="content-section">
+            <h2>My Recent Submissions</h2>
+            <p>Track what you’ve already requested for pickup.</p>
+            <a href="my-submissions.html" class="btn" style="margin-top: 15px; display: inline-block;">View All Submissions</a>
+        </div>
+    </div>
+    
+    <script src="../js/auth.js"></script>
+    <script>
+        // Check authentication and load user data
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            // Verify user is a resident
+            if (user.role !== 'resident' && user.role !== 'admin') {
+                alert('Access denied. This page is for residents only.');
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            // Display user name
+            document.getElementById('userName').textContent = user.full_name || 'Resident';
+
+            // Load upcoming schedules and summary stats
+            await Promise.all([
+                loadUpcomingSchedules(),
+                loadMySubmissionStats()
+            ]);
+        });
+
+        // Load upcoming schedules for the user
+        async function loadUpcomingSchedules() {
+            try {
+                const response = await fetch('/api/schedules/upcoming', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.data && data.data.length > 0) {
+                        displaySchedules(data.data);
+                    } else {
+                        document.getElementById('scheduleContainer').innerHTML = `
+                            <div class="placeholder">
+                                No collection schedules found for your area. Contact your local administrator for schedule information.
+                            </div>
+                        `;
+                    }
+                } else {
+                    document.getElementById('scheduleContainer').innerHTML = `
+                        <div class="placeholder">
+                            Failed to load schedule information. Please try again later.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                document.getElementById('scheduleContainer').innerHTML = `
+                    <div class="placeholder">
+                        Error loading schedule information. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+        // Load basic stats about the resident's submissions
+        async function loadMySubmissionStats() {
+            try {
+                const response = await fetch('/api/waste/my-submissions', {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    document.getElementById('myRequestsCount').textContent = '–';
+                    document.getElementById('pendingRequestsCount').textContent = '–';
+                    return;
+                }
+
+                const data = await response.json();
+                const submissions = data.data || [];
+                document.getElementById('myRequestsCount').textContent = submissions.length;
+
+                const pending = submissions.filter(s => s.collection_status === 'pending').length;
+                document.getElementById('pendingRequestsCount').textContent = pending;
+
+                const subText = submissions.length === 0
+                    ? 'You haven’t submitted any requests yet.'
+                    : `You’ve submitted ${submissions.length} request${submissions.length > 1 ? 's' : ''} so far.`;
+                document.getElementById('myRequestsSub').textContent = subText;
+            } catch (error) {
+                console.error('Error loading submission stats:', error);
+                document.getElementById('myRequestsCount').textContent = '–';
+                document.getElementById('pendingRequestsCount').textContent = '–';
+            }
+        }
+
+        // Display schedules in the container
+        function displaySchedules(schedules) {
+            const container = document.getElementById('scheduleContainer');
+
+            let scheduleHtml = '<div class="schedule-list">';
+
+            schedules.forEach((schedule, index) => {
+                const nextDate = new Date(schedule.next_collection_date);
+                const formattedDate = nextDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                const formattedTime = new Date(`2000-01-01T${schedule.collection_time}`).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+
+                // For the first (soonest) schedule, also update the summary card
+                if (index === 0) {
+                    document.getElementById('nextPickupValue').textContent = `${formattedDate}`;
+                    document.getElementById('nextPickupSub').textContent = `${schedule.collection_day} • ${formattedTime}`;
+                }
+
+                scheduleHtml += `
+                    <div class="schedule-item">
+                        <div class="schedule-day">
+                            <h3>${schedule.collection_day}</h3>
+                            <p class="next-date">Next: ${formattedDate}</p>
+                        </div>
+                        <div class="schedule-details">
+                            <p><strong>Time:</strong> ${formattedTime}</p>
+                            <p><strong>Area:</strong> ${schedule.barangay_name}, ${schedule.municipality}</p>
+                            <p><strong>Waste Type:</strong> ${schedule.waste_type}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            scheduleHtml += '</div>';
+            container.innerHTML = scheduleHtml;
+        }
+
+        // Function to scroll to a specific section
+        function scrollToSection(sectionId) {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Function to show the profile section
+        async function showProfileSection() {
+            // Hide all other sections first
+            document.querySelectorAll('.content-section:not(#profileSection)').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Show profile section
+            document.getElementById('profileSection').style.display = 'block';
+
+            // Load profile data
+            await loadProfileData();
+        }
+
+        // Function to load profile data
+        async function loadProfileData() {
+            try {
+                const response = await fetch('/api/auth/me', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.data) {
+                        displayProfileForm(data.data);
+                    } else {
+                        document.getElementById('profileContainer').innerHTML = `
+                            <div class="placeholder">
+                                Unable to load profile information. Please refresh the page.
+                            </div>
+                        `;
+                    }
+                } else {
+                    document.getElementById('profileContainer').innerHTML = `
+                        <div class="placeholder">
+                            Failed to load profile information. Please try again later.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                document.getElementById('profileContainer').innerHTML = `
+                    <div class="placeholder">
+                        Error loading profile information. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+        // Function to display the profile form
+        function displayProfileForm(userData) {
+            const container = document.getElementById('profileContainer');
+
+            // Format the creation date
+            const createdAt = userData.created_at ?
+                new Date(userData.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }) : 'Unknown';
+
+            // Determine profile picture to show
+            const profilePicUrl = userData.profile_picture || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="%23667eea"/><path d="M20 19v-2a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2z" fill="%23667eea"/></svg>'; // Use default SVG avatar if no profile pic
+
+            container.innerHTML = `
+                <form id="profileForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" name="full_name" value="${userData.full_name || ''}" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email (cannot be changed)</label>
+                        <input type="email" id="email" name="email" value="${userData.email || ''}" readonly disabled>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone_number" value="${userData.phone_number || ''}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <textarea id="address" name="address" rows="3">${userData.address || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="barangay">Barangay</label>
+                        <select id="barangay" name="barangay_id">
+                            <option value="">Loading barangays...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Profile Picture</label>
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 2px solid #ddd;">
+                                <img id="profilePicPreview" src="${profilePicUrl}" alt="Profile Picture" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"8\" r=\"4\" fill=\"%23667eea\"/><path d=\"M20 19v-2a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2z\" fill=\"%23667eea\"/></svg>';">
+                            </div>
+                            <div>
+                                <input type="file" id="profilePicture" name="profile_picture" accept="image/*" style="margin-bottom: 10px;">
+                                <small>Max file size: 5MB. Formats: JPG, PNG, GIF</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Account Created</label>
+                        <input type="text" value="${createdAt}" readonly disabled>
+                    </div>
+
+                    <button type="submit" class="btn">Update Profile</button>
+                    <button type="button" class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+                </form>
+            `;
+
+            // Add event listener for profile picture preview
+            document.getElementById('profilePicture').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        document.getElementById('profilePicPreview').src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Load barangays
+            loadBarangays(userData.barangay_id);
+        }
+
+        // Function to load barangays for the dropdown
+        async function loadBarangays(selectedBarangayId = null) {
+            try {
+                const response = await fetch('/api/locations', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('barangay');
+
+                    select.innerHTML = '<option value="">Select barangay/village</option>';
+
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(location => {
+                            const option = document.createElement('option');
+                            option.value = location.location_id;
+                            option.textContent = `${location.barangay_name}, ${location.municipality}`;
+
+                            if (selectedBarangayId && location.location_id == selectedBarangayId) {
+                                option.selected = true;
+                            }
+
+                            select.appendChild(option);
+                        });
+                    }
+                } else {
+                    document.getElementById('barangay').innerHTML = '<option value="">Error loading barangays</option>';
+                }
+            } catch (error) {
+                console.error('Error loading barangays:', error);
+                document.getElementById('barangay').innerHTML = '<option value="">Error loading barangays</option>';
+            }
+        }
+
+        // Function to handle profile form submission
+        document.addEventListener('DOMContentLoaded', function() {
+            // Use event delegation to handle form submission
+            document.addEventListener('submit', function(e) {
+                if (e.target.id === 'profileForm') {
+                    e.preventDefault();
+                    updateProfile();
+                }
+            });
+        });
+
+        // Function to update profile
+        async function updateProfile() {
+            const form = document.getElementById('profileForm');
+
+            // Check if there's a file to upload
+            const fileInput = document.getElementById('profilePicture');
+            const hasFile = fileInput.files.length > 0;
+
+            try {
+                let response;
+                let result;
+
+                if (hasFile) {
+                    // Use multipart form data for file upload
+                    const formData = new FormData(form);
+                    response = await fetch('/api/users/update-profile-picture', {
+                        method: 'PUT',
+                        credentials: 'include',
+                        body: formData
+                    });
+                } else {
+                    // Use JSON for regular updates
+                    const profileData = {};
+                    const inputs = form.querySelectorAll('input, textarea, select');
+                    inputs.forEach(input => {
+                        if (input.name && input.name !== 'profile_picture') {
+                            profileData[input.name] = input.value;
+                        }
+                    });
+
+                    response = await fetch('/api/users/update-profile', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(profileData)
+                    });
+                }
+
+                result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    // Show success message
+                    showMessage('Profile updated successfully!', 'success');
+
+                    // Optionally reload the user info in the header
+                    const user = await checkAuthStatus();
+                    if (user) {
+                        document.getElementById('userName').textContent = user.full_name || 'Resident';
+                    }
+                } else {
+                    showMessage(result.message || 'Failed to update profile. Please try again.', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                showMessage('An error occurred while updating profile. Please try again.', 'error');
+            }
+        }
+
+        // Function to cancel edit and return to dashboard view
+        function cancelEdit() {
+            // Reload the page to reset to original view
+            location.reload();
+        }
+
+        // Function to show messages
+        function showMessage(message, type) {
+            // Create message element
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.style.marginBottom = '20px';
+
+            // Insert after the profile header
+            const profileContainer = document.getElementById('profileContainer');
+            profileContainer.insertBefore(messageDiv, profileContainer.firstChild);
+
+            // Remove message after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

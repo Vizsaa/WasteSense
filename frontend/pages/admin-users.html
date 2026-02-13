@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .users-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .users-table tr:hover {
+            background: #f8f9fa;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-admin { background: #0d6efd; color: #fff; }
+        .badge-collector { background: #198754; color: #fff; }
+        .badge-resident { background: #6c757d; color: #fff; }
+        .badge-inactive { background: #dc3545; color: #fff; }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>User Management</h1>
+            <p>View all registered users and their roles</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
+                <li><a href="admin-users.html">Users</a></li>
+                <li><a href="register.html">Register New User</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>All Users</h2>
+            <div id="alert-container"></div>
+
+            <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                <div class="form-group">
+                    <label for="roleFilter">Filter by Role</label>
+                    <select id="roleFilter">
+                        <option value="">All roles</option>
+                        <option value="admin">Admin</option>
+                        <option value="collector">Collector</option>
+                        <option value="resident">Resident</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="searchEmail">Search by Email</label>
+                    <input type="text" id="searchEmail" placeholder="Type to filter...">
+                </div>
+            </div>
+
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Barangay ID</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        let allUsers = [];
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            if (user.role !== 'admin') {
+                alert('Access denied. Admin only.');
+                window.location.href = '/pages/dashboard-resident.html';
+                return;
+            }
+
+            await loadUsers();
+
+            document.getElementById('roleFilter').addEventListener('change', renderUsers);
+            document.getElementById('searchEmail').addEventListener('input', renderUsers);
+        });
+
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users', { credentials: 'include' });
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    allUsers = data.data || [];
+                    renderUsers();
+                } else {
+                    showAlert(data.message || 'Failed to load users.', 'error');
+                    document.getElementById('usersTableBody').innerHTML =
+                        '<tr><td colspan="6" style="text-align: center;">Failed to load users.</td></tr>';
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('An error occurred while loading users.', 'error');
+                document.getElementById('usersTableBody').innerHTML =
+                    '<tr><td colspan="6" style="text-align: center;">Error loading users.</td></tr>';
+            }
+        }
+
+        function renderUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            const roleFilter = document.getElementById('roleFilter').value;
+            const searchEmail = document.getElementById('searchEmail').value.trim().toLowerCase();
+
+            const filtered = allUsers.filter(u => {
+                const matchesRole = !roleFilter || u.role === roleFilter;
+                const matchesEmail = !searchEmail || (u.email || '').toLowerCase().includes(searchEmail);
+                return matchesRole && matchesEmail;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No users found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(u => `
+                <tr>
+                    <td>${u.email}</td>
+                    <td>${u.full_name || ''}</td>
+                    <td>${renderRoleBadge(u.role)}</td>
+                    <td>${u.is_active ? '<span class="badge">Active</span>' : '<span class="badge badge-inactive">Inactive</span>'}</td>
+                    <td>${u.barangay_id || '-'}</td>
+                    <td>${u.created_at ? new Date(u.created_at).toLocaleString() : ''}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="editUser(${u.user_id})">Edit</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderRoleBadge(role) {
+            if (role === 'admin') return '<span class="badge badge-admin">Admin</span>';
+            if (role === 'collector') return '<span class="badge badge-collector">Collector</span>';
+            return '<span class="badge badge-resident">Resident</span>';
+        }
+
+        async function editUser(userId) {
+            const user = allUsers.find(u => u.user_id === userId);
+            if (!user) return;
+
+            const currentRole = user.role;
+            const newRole = prompt('Set role (resident / collector / admin):', currentRole);
+            if (newRole === null) {
+                return; // cancelled
+            }
+            const roleTrimmed = newRole.trim().toLowerCase();
+            const validRoles = ['resident', 'collector', 'admin'];
+            if (!validRoles.includes(roleTrimmed)) {
+                showAlert('Invalid role. Please enter resident, collector, or admin.', 'error');
+                return;
+            }
+
+            const makeInactive = confirm(user.is_active
+                ? 'Click OK to mark this user as INACTIVE, or Cancel to keep them active.'
+                : 'Click OK to keep this user INACTIVE, or Cancel to mark them as ACTIVE.');
+            const is_active = makeInactive ? !user.is_active : user.is_active;
+
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ role: roleTrimmed, is_active })
+                });
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    showAlert('User updated successfully.', 'success');
+                    await loadUsers();
+                } else {
+                    showAlert(data.message || 'Failed to update user.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showAlert('An error occurred while updating user.', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
+

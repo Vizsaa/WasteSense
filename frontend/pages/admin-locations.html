@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Locations - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .locations-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .locations-table th,
+        .locations-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .locations-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        .locations-table tr:hover {
+            background: #f8f9fa;
+        }
+        .btn-small {
+            padding: 5px 15px;
+            font-size: 14px;
+            margin: 0 5px;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .add-location-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+    
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Manage Barangays/Locations</h1>
+            <p>Add and manage barangays/villages for waste collection</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
+                <li><a href="admin-locations.html">Locations</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>Add New Barangay</h2>
+            <form id="addLocationForm" class="add-location-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="barangayName">Barangay Name *</label>
+                        <input type="text" id="barangayName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="municipality">Municipality *</label>
+                        <input type="text" id="municipality" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="province">Province *</label>
+                        <input type="text" id="province" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="zoneOrStreet">Zone/Street (Optional)</label>
+                        <input type="text" id="zoneOrStreet">
+                    </div>
+                </div>
+                <button type="submit" class="btn">Add Barangay</button>
+            </form>
+        </div>
+
+        <div class="content-section">
+            <h2>Existing Barangays</h2>
+            <div id="alert-container"></div>
+            <table class="locations-table">
+                <thead>
+                    <tr>
+                        <th>Barangay Name</th>
+                        <th>Municipality</th>
+                        <th>Province</th>
+                        <th>Zone/Street</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="locationsTableBody">
+                    <tr>
+                        <td colspan="5" style="text-align: center;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        // Check authentication and admin role
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            if (user.role !== 'admin') {
+                alert('Access denied. Admin only.');
+                window.location.href = '/pages/dashboard-resident.html';
+                return;
+            }
+
+            await loadLocations();
+        });
+
+        async function loadLocations() {
+            try {
+                const response = await fetch('/api/locations', {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    displayLocations(data.data || []);
+                } else {
+                    document.getElementById('locationsTableBody').innerHTML = 
+                        '<tr><td colspan="5" style="text-align: center;">Error loading locations</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading locations:', error);
+                document.getElementById('locationsTableBody').innerHTML = 
+                    '<tr><td colspan="5" style="text-align: center;">Error loading locations</td></tr>';
+            }
+        }
+
+        function displayLocations(locations) {
+            const tbody = document.getElementById('locationsTableBody');
+
+            if (locations.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No locations found. Add one above.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = locations.map(location => `
+                <tr>
+                    <td>${location.barangay_name}</td>
+                    <td>${location.municipality}</td>
+                    <td>${location.province}</td>
+                    <td>${location.zone_or_street || '-'}</td>
+                    <td>
+                        <button onclick="deleteLocation(${location.location_id})" class="btn btn-secondary btn-small btn-danger">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Add location form
+        document.getElementById('addLocationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                barangay_name: document.getElementById('barangayName').value.trim(),
+                municipality: document.getElementById('municipality').value.trim(),
+                province: document.getElementById('province').value.trim(),
+                zone_or_street: document.getElementById('zoneOrStreet').value.trim() || null
+            };
+
+            try {
+                const response = await fetch('/api/locations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    showAlert('Barangay added successfully!', 'success');
+                    document.getElementById('addLocationForm').reset();
+                    await loadLocations();
+                } else {
+                    showAlert(data.message || 'Failed to add barangay', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding location:', error);
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        });
+
+        async function deleteLocation(locationId) {
+            if (!confirm('Are you sure you want to delete this barangay? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locations/${locationId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    showAlert('Barangay deleted successfully!', 'success');
+                    await loadLocations();
+                } else {
+                    showAlert(data.message || 'Failed to delete barangay', 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting location:', error);
+                showAlert('An error occurred. Please try again.', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
