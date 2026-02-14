@@ -1,5 +1,5 @@
 # ✅ WasteSense Setup Checklist
-
+# test
 Follow these steps in order to set up your WasteSense project.
 
 ## Prerequisites Check
