@@ -88,7 +88,7 @@
                 </thead>
                 <tbody id="usersTableBody">
                     <tr>
-                        <td colspan="6" style="text-align: center;">Loading...</td>
+                        <td colspan="7" style="text-align: center;">Loading...</td>
                     </tr>
                 </tbody>
             </table>
@@ -128,13 +128,13 @@
                 } else {
                     showAlert(data.message || 'Failed to load users.', 'error');
                     document.getElementById('usersTableBody').innerHTML =
-                        '<tr><td colspan="6" style="text-align: center;">Failed to load users.</td></tr>';
+                        '<tr><td colspan="7" style="text-align: center;">Failed to load users.</td></tr>';
                 }
             } catch (error) {
                 console.error(error);
                 showAlert('An error occurred while loading users.', 'error');
                 document.getElementById('usersTableBody').innerHTML =
-                    '<tr><td colspan="6" style="text-align: center;">Error loading users.</td></tr>';
+                    '<tr><td colspan="7" style="text-align: center;">Error loading users.</td></tr>';
             }
         }
 

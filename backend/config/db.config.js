@@ -33,9 +33,11 @@ pool.getConnection()
   });
 
 // Helper function to execute queries
+// Uses pool.query() instead of pool.execute() to avoid prepared-statement
+// connection leaks that can exhaust the pool under sustained traffic.
 const query = async (sql, params) => {
   try {
-    const [rows, fields] = await pool.execute(sql, params);
+    const [rows, fields] = await pool.query(sql, params || []);
     return [rows];
   } catch (error) {
     console.error('Database query error:', error);
@@ -46,8 +48,7 @@ const query = async (sql, params) => {
 // Helper function to execute queries and return full result (for INSERT queries that need insertId)
 const execute = async (sql, params) => {
   try {
-    const [result] = await pool.execute(sql, params);
-    // For INSERT queries, result.insertId is available
+    const [result] = await pool.query(sql, params || []);
     return result;
   } catch (error) {
     console.error('Database execute error:', error);

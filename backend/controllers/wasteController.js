@@ -27,6 +27,7 @@ const submitWaste = async (req, res) => {
     // Get form data
     const {
       predicted_category,
+      confidence_score,
       confirmed_category,
       waste_types, // Array of selected waste types
       waste_adjective,
@@ -76,6 +77,7 @@ const submitWaste = async (req, res) => {
       user_id: userId,
       image_path: imagePath,
       predicted_category: predicted_category || null,
+      confidence_score: confidence_score || null,
       confirmed_category: confirmed_category || null,
       waste_types: wasteTypesArray.length > 0 ? wasteTypesArray : null,
       waste_adjective: waste_adjective || null,

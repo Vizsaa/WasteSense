@@ -102,7 +102,7 @@ class User {
   }
 
   /**
-   * Find user by email
+   * Find user by email (active users only, used for login)
    * @param {string} email - User email
    * @returns {Promise<Object|null>} User object or null
    */
@@ -110,6 +110,17 @@ class User {
     const sql = 'SELECT * FROM users WHERE email = ? AND is_active = TRUE';
     const [rows] = await db.query(sql, [email]);
     return rows.length > 0 ? rows[0] : null;
+  }
+
+  /**
+   * Check if an email already exists (active or inactive, used for registration)
+   * @param {string} email - User email
+   * @returns {Promise<boolean>} True if email exists
+   */
+  static async emailExists(email) {
+    const sql = 'SELECT user_id FROM users WHERE email = ?';
+    const [rows] = await db.query(sql, [email]);
+    return rows.length > 0;
   }
 
   /**

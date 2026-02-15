@@ -6,7 +6,7 @@
     <title>Register - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
-<body>
+<body class="auth-page">
     <div class="container">
         <h1>WasteSense</h1>
         <p class="subtitle">Create Your Account</p>
@@ -36,16 +36,6 @@
             </div>
             
             <div class="form-group">
-                <label for="role">Account Type</label>
-                <select id="role" name="role" required>
-                    <option value="">Select account type</option>
-                    <option value="resident">Resident</option>
-                    <option value="collector">Collector</option>
-                    <option value="admin">Administrator</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
                 <label for="phone_number">Phone Number (Optional)</label>
                 <input type="tel" id="phone_number" name="phone_number">
             </div>
@@ -56,12 +46,9 @@
             </div>
             
             <div class="form-group">
-                <label for="barangay_id">Barangay (Optional)</label>
+                <label for="barangay_id">Barangay / Village</label>
                 <select id="barangay_id" name="barangay_id">
-                    <option value="">Select barangay</option>
-                    <option value="1">Barangay Poblacion</option>
-                    <option value="2">Barangay San Jose</option>
-                    <option value="3">Barangay Santa Maria</option>
+                    <option value="">Loading barangays...</option>
                 </select>
             </div>
             
@@ -78,44 +65,99 @@
     
     <script src="../js/auth.js"></script>
     <script>
+        // Initialize page: check auth then load barangays
+        async function initPage() {
+            try {
+                const user = await checkAuthStatus();
+                if (user && user.role) {
+                    // Allow admins to stay — they may be creating a new user
+                    if (user.role !== 'admin') {
+                        redirectByRole(user.role);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Auth check skipped:', e);
+            }
+            loadBarangays();
+        }
+
+        // Robust init: works whether DOMContentLoaded already fired or not
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
+
+        async function loadBarangays() {
+            const select = document.getElementById('barangay_id');
+            try {
+                const response = await fetch('/api/locations');
+                if (response.ok) {
+                    const data = await response.json();
+                    select.innerHTML = '<option value="">Select barangay / village</option>';
+                    if (data.data && data.data.length > 0) {
+                        data.data.forEach(loc => {
+                            const option = document.createElement('option');
+                            option.value = loc.location_id;
+                            option.textContent = `${loc.barangay_name}, ${loc.municipality}`;
+                            select.appendChild(option);
+                        });
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Could not load barangays</option>';
+                }
+            } catch (error) {
+                console.error('Error loading barangays:', error);
+                select.innerHTML = '<option value="">Error loading barangays</option>';
+            }
+        }
+
         // Handle registration form submission
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+
             const formData = {
                 full_name: document.getElementById('full_name').value.trim(),
                 email: document.getElementById('email').value.trim(),
                 password: document.getElementById('password').value,
                 confirm_password: document.getElementById('confirm_password').value,
-                role: document.getElementById('role').value,
+                role: 'resident',
                 phone_number: document.getElementById('phone_number').value.trim() || null,
                 address: document.getElementById('address').value.trim() || null,
                 barangay_id: document.getElementById('barangay_id').value || null
             };
-            
+
             // Client-side validation
-            if (!formData.full_name || !formData.email || !formData.password || !formData.role) {
+            if (!formData.full_name || !formData.email || !formData.password) {
                 showAlert('Please fill in all required fields', 'error');
                 return;
             }
-            
+
             if (formData.password !== formData.confirm_password) {
                 showAlert('Passwords do not match', 'error');
                 return;
             }
-            
+
             if (formData.password.length < 6) {
                 showAlert('Password must be at least 6 characters long', 'error');
                 return;
             }
-            
+
             // Email validation
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(formData.email)) {
                 showAlert('Please enter a valid email address', 'error');
                 return;
             }
-            
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Registering...';
+
             try {
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
@@ -125,9 +167,9 @@
                     credentials: 'include',
                     body: JSON.stringify(formData)
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok && data.status === 'success') {
                     showAlert('Registration successful! Redirecting to login...', 'success');
                     setTimeout(() => {
@@ -135,15 +177,18 @@
                     }, 2000);
                 } else {
                     showAlert(data.message || 'Registration failed. Please try again.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                showAlert('An error occurred. Please try again.', 'error');
+                showAlert('Connection error. Please check your network and try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
         });
-        
+
         function handleCancel() {
-            // If coming from admin users page, go back there; otherwise go to login
             if (document.referrer && document.referrer.includes('admin-users.html')) {
                 window.location.href = 'admin-users.html';
             } else if (document.referrer) {
@@ -156,10 +201,12 @@
         function showAlert(message, type) {
             const alertContainer = document.getElementById('alert-container');
             alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (type !== 'success') {
+                setTimeout(() => {
+                    alertContainer.innerHTML = '';
+                }, 5000);
+            }
         }
     </script>
 </body>

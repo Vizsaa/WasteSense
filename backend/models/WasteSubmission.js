@@ -11,6 +11,7 @@ class WasteSubmission {
       user_id,
       image_path,
       predicted_category,
+      confidence_score,
       confirmed_category,
       waste_types, // Array of waste types
       waste_adjective,
@@ -34,14 +35,15 @@ class WasteSubmission {
 
     const sql = `
       INSERT INTO waste_submissions 
-      (user_id, image_path, predicted_category, confirmed_category, waste_types, waste_adjective, waste_adjectives, waste_description, latitude, longitude, address_description, barangay_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (user_id, image_path, predicted_category, confidence_score, confirmed_category, waste_types, waste_adjective, waste_adjectives, waste_description, latitude, longitude, address_description, barangay_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
       user_id,
       image_path || null,
       predicted_category || null,
+      confidence_score != null ? parseFloat(confidence_score) : null,
       confirmed_category || null,
       wasteTypesJson,
       waste_adjective || null,
@@ -387,6 +389,7 @@ class WasteSubmission {
   static async update(submissionId, updateData) {
     const allowedFields = [
       'confirmed_category',
+      'confidence_score',
       'waste_types',
       'waste_adjective',
       'waste_adjectives',

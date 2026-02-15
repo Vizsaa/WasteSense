@@ -1,331 +1,301 @@
 # WasteSense - Smart Waste Collection System
 
-A web-based smart waste collection and monitoring system designed for Philippine communities.
+A web-based smart waste collection and monitoring system designed for Philippine communities. Features AI-powered waste image recognition, geocoded collection locations, role-based dashboards, and a complete schedule management system.
 
-## 🚀 Quick Start (for your own PC)
-
-If you just want to run WasteSense locally and everything is already installed, do this in a terminal inside the `WasteSense` folder:
+## Quick Start
 
 ```bash
 npm install
-node database/setup.js
-npm run dev
+Copy-Item .env.example .env      # create .env from template
+node database/setup.js            # create database + seed data
+npm run dev                       # start server on http://localhost:3000
 ```
 
-Then open `http://localhost:3000` in your browser and log in with:
-
-- Email: `admin@wastesense.ph`  
-- Password: `admin123`
-
-If you’re setting this up on a **new computer** (fresh install), follow the full guide below.
+**Default admin login:** `admin@wastesense.ph` / `admin123`
 
 ---
 
-## 🧰 Full Setup Guide (from zero)
+## Full Setup Guide
 
-These steps are written so you can **send this project to a friend** and they can get it running by just following this section.
+### Prerequisites
 
-### 1. Install required software
+1. **Node.js** (LTS) - [nodejs.org](https://nodejs.org/)
+2. **XAMPP** (for MySQL) - [apachefriends.org](https://www.apachefriends.org/)
+   - Start **MySQL** from the XAMPP Control Panel
 
-1. **Node.js (JavaScript runtime)**
-   - Go to `https://nodejs.org/`
-   - Download the **LTS** version.
-   - Run the installer.
-   - On the install screen, make sure **“Add to PATH”** is checked.
-   - After installation, close and reopen PowerShell / Command Prompt.
-   - Verify:
-     ```bash
-     node --version
-     npm --version
-     ```
+### Step 1: Install dependencies
 
-2. **XAMPP (MySQL database)**
-   - Download XAMPP from `https://www.apachefriends.org/`
-   - Install it (default options are fine).
-   - Open **XAMPP Control Panel**.
-   - Start **MySQL** (green indicator). Apache is optional for WasteSense.
-
-### 2. Get the WasteSense project files
-
-You can either:
-
-- **Download as ZIP**:
-  - Receive the project folder (`WasteSense`) as a ZIP.
-  - Extract it to a folder, e.g.:
-    - `C:\Users\YOUR_NAME\Documents\WasteSense`
-
-or
-
-- **Clone from Git (if you use Git)**:
-  ```bash
-  git clone <repo-url>
-  cd WasteSense
-  ```
-
-For the rest of this guide, we’ll assume your project is in a folder like:
-
-```text
-C:\Users\YOUR_NAME\Documents\WasteSense
-```
-
-### 3. Open a terminal in the project folder
-
-1. Open **File Explorer**.
-2. Navigate to your `WasteSense` folder.
-3. Click on the **address bar**, type `powershell`, and press **Enter**.  
-   → A PowerShell window will open already in the `WasteSense` directory.
-
-You should see the prompt ending in `...WasteSense>` when you type:
-
-```powershell
-pwd
-```
-
-### 4. Install Node.js dependencies
-
-In that PowerShell window (inside `WasteSense`), run:
-
-```powershell
+```bash
 npm install
 ```
 
-This reads `package.json` and installs all required backend packages (Express, MySQL2, bcrypt, etc.).
+### Step 2: Configure environment
 
-Only do this once per machine (or when `package.json` changes).
+Copy the example environment file and edit if needed:
 
-### 5. Configure environment (.env)
-
-**Important:** The `.env` file is not included in the GitHub repository (for security). You need to create it yourself.
-
-1. In your `WasteSense` folder, you should see a file called **`.env.example`**.
-2. **Copy** `.env.example` and rename the copy to **`.env`**:
-   - In Windows: Right-click `.env.example` → Copy → Paste → Rename the copy to `.env`
-   - Or in PowerShell:
-     ```powershell
-     Copy-Item .env.example .env
-     ```
-3. Open `.env` in a text editor. The default values should work for most setups:
-
-```env
-PORT=3000
-NODE_ENV=development
-
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=wastesense_db
-
-SESSION_SECRET=wastesense-secret-key-change-in-production-2024
-
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=5242880
+```bash
+Copy-Item .env.example .env
 ```
 
-You only need to change this if:
+Default `.env` values work for standard XAMPP setups. Only change if:
+- Your MySQL has a password: set `DB_PASSWORD`
+- Port 3000 is in use: change `PORT`
 
-- Your MySQL has a password → set `DB_PASSWORD` to that password.
-- Port 3000 is already in use → change `PORT` to e.g. `3001`.
+### Step 3: Set up the database
 
-Otherwise, you can leave `.env` as is.
+There is **one SQL file** for the entire database: `database/wastesense_db_setup.sql`
 
-### 6. Create and populate the database
+**Method A - Automated (recommended):**
 
-WasteSense uses a MySQL database called **`wastesense_db`**. You can set it up in **two ways**; pick the one you prefer.
+```bash
+node database/setup.js
+```
 
-#### Option A: One‑click style via Node.js script (recommended if Node is working)
+This creates the database, all 6 tables, and inserts seed data (admin user, locations, schedules).
 
-1. Make sure **MySQL** is running in XAMPP.
-2. In the PowerShell window inside `WasteSense`, run:
+**Method B - Manual (phpMyAdmin / MySQL Workbench):**
 
-   ```powershell
-   node database/setup.js
-   ```
+1. Open `http://localhost/phpmyadmin`
+2. Click the **SQL** tab (or **Import** tab)
+3. Open and run the file: `database/wastesense_db_setup.sql`
+4. Verify 6 tables are created: `locations`, `users`, `schedules`, `waste_submissions`, `notifications`, `performance_tracking`
 
-3. This script will:
-   - Create the database `wastesense_db` (if it doesn’t exist).
-   - Create all tables.
-   - Insert initial data.
-   - Create the admin user.
+### Step 4: Start the server
 
-If it finishes without error, you’re done with the database step.
-
-#### Option B: Manual setup via phpMyAdmin
-
-Use this if you prefer a graphical interface or the script fails.
-
-1. Open your browser and go to:
-   - `http://localhost/phpmyadmin`
-2. In the left sidebar, click **“New”**.
-3. Create database:
-   - Name: `wastesense_db`
-   - Collation: `utf8mb4_general_ci`
-   - Click **Create**.
-4. Click the `wastesense_db` database in the left sidebar.
-5. Click the **SQL** tab.
-6. Open this file in a text editor:
-   - `database/complete_setup.sql`
-7. Select all text (Ctrl+A) and copy it (Ctrl+C).
-8. Paste into the SQL text area in phpMyAdmin.
-9. Click **Go**.
-10. You should now see several tables created (locations, users, schedules, waste_submissions, notifications, performance_tracking, etc.).
-
-### 7. Start the WasteSense server
-
-In the same PowerShell window (inside `WasteSense`), run:
-
-```powershell
+```bash
 npm run dev
 ```
 
-You should see something like:
-
-```text
-🚀 WasteSense server running on http://localhost:3000
-📊 Environment: development
-✅ Database connection established
+Expected output:
+```
+Server running on http://localhost:3000
+Database connection established
 ```
 
-**Leave this window open** while you use the application. To stop the server later, press **Ctrl + C** in that window.
+### Step 5: Verify
 
-### 8. Open the application in your browser
-
-1. Open Chrome / Edge / Firefox.
-2. Go to:
-   - `http://localhost:3000`
-3. You’ll be redirected to the login page.
-4. Log in as **admin** using:
-   - Email: `admin@wastesense.ph`
-   - Password: `admin123`
-
-You can then:
-
-- Use the **Admin Dashboard** to manage schedules, users, locations, analytics, and performance.
-- Register additional **resident** and **collector** accounts from the **User Management** page or via the **Register** screen.
-
-### 9. Basic smoke tests
-
-After setup, try these to confirm everything works:
-
-1. **Admin login**
-   - Log in as admin (`admin@wastesense.ph` / `admin123`).
-   - Verify you land on the Admin dashboard.
-2. **Resident flow**
-   - Register a new user as a **resident**.
-   - Log in as that resident.
-   - Go to **Submit Waste**, upload an image, select types, and submit.
-3. **Collector flow**
-   - Register a user as a **collector**.
-   - Log in as that collector.
-   - Check **Collector Dashboard** → see assigned submissions when admin/collector accepts them.
-4. **Database health**
-   - Visit `http://localhost:3000/api/test-db` → should return a small JSON with `"status": "ok"`.
-
-If any of these steps fail, see the troubleshooting hints in `SETUP.md` or `QUICK_START.md`.
-
-## 📋 Project Status
-
-**Current Completion: 40%**
-
-✅ **Phase 1:** Project Setup & Configuration (15%)  
-✅ **Phase 2:** Database Design & Implementation (10%)  
-✅ **Phase 3:** User Authentication System (15%)  
-⏳ **Phase 4:** Schedule Management System (15%) - Next  
-⏳ **Phase 5:** Waste Submission & Image Recognition (15%)  
-⏳ **Phase 6:** Notification System (10%)  
-⏳ **Phase 7:** Admin Analytics Dashboard (10%)  
-⏳ **Phase 8:** Testing, Refinement & Deployment (10%)
-
-See [COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.md) for detailed status.
-
-## 🏗️ Project Structure
-
-```
-wastesense/
-├── backend/
-│   ├── config/          # Database configuration
-│   ├── controllers/     # Request handlers
-│   ├── middleware/      # Auth middleware
-│   ├── models/          # Data models
-│   ├── routes/          # API routes
-│   └── server.js        # Main server file
-├── frontend/
-│   ├── css/             # Stylesheets
-│   ├── js/              # JavaScript files
-│   └── pages/           # HTML pages
-├── database/
-│   ├── schema.sql       # Database schema
-│   ├── sample_data.sql  # Sample data
-│   └── setup.js         # Setup script
-├── uploads/             # File uploads directory
-└── README.md            # This file
-```
-
-## ✨ Features
-
-### ✅ Implemented (40%)
-- User authentication with role-based access (Resident, Collector, Admin)
-- Secure password hashing (bcrypt)
-- Session management
-- Role-based dashboards
-- Database structure with 6 core tables
-- Automated database setup
-
-### 🚧 In Progress (60%)
-- Automated scheduling and notifications
-- Waste submission with image recognition
-- Geotagging for precise collection
-- Performance tracking and analytics
-- Admin management tools
-
-## 🛠️ Technology Stack
-
-- **Frontend:** HTML, CSS, JavaScript
-- **Backend:** Node.js, Express
-- **Database:** MySQL (via XAMPP)
-- **Authentication:** Express-session, bcrypt
-- **File Upload:** Multer (ready for implementation)
-- **Image Processing:** TensorFlow.js (planned)
-
-## 📚 Documentation
-
-- **[SETUP.md](SETUP.md)** - Detailed setup instructions
-- **[COMPLETION_SUMMARY.md](COMPLETION_SUMMARY.md)** - Project completion status
-- **[database/README.md](database/README.md)** - Database documentation
-
-## 🔐 Default Credentials
-
-**Admin Account:**
-- Email: `admin@wastesense.ph`
-- Password: `admin123`
-
-## 📝 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user (protected)
-
-### System
-- `GET /api/health` - Health check
-- `GET /api/test-db` - Test database connection
-
-## 🧪 Testing
-
-1. **Test Registration:** Create a new user account
-2. **Test Login:** Login with admin credentials
-3. **Test Role Access:** Verify role-based dashboards
-4. **Test Database:** Visit `/api/test-db`
-
-## 🤝 Contributing
-
-This is a development project. Follow the setup guide and ensure all tests pass before submitting changes.
-
-## 📄 License
-
-ISC
+1. Open `http://localhost:3000` in your browser
+2. Log in as admin: `admin@wastesense.ph` / `admin123`
+3. Register a resident account and test the waste submission flow
 
 ---
 
-**Status:** ✅ Foundation Complete - Ready for Feature Development
+## Project Structure
+
+```
+WasteSense/
+├── backend/
+│   ├── config/
+│   │   └── db.config.js            # MySQL connection pool
+│   ├── controllers/
+│   │   ├── authController.js       # Registration, login, logout
+│   │   ├── wasteController.js      # Waste submission CRUD
+│   │   ├── scheduleController.js   # Schedule management
+│   │   ├── userController.js       # User/profile management
+│   │   ├── locationController.js   # Barangay/location CRUD
+│   │   ├── notificationController.js
+│   │   └── performanceController.js
+│   ├── middleware/
+│   │   ├── auth.js                 # requireAuth, requireAdmin, requireCollector
+│   │   └── upload.js               # Multer config (5MB, image types only)
+│   ├── models/
+│   │   ├── User.js                 # User model with bcrypt hashing
+│   │   ├── WasteSubmission.js      # Waste submission model
+│   │   ├── Schedule.js             # Schedule model
+│   │   ├── Location.js             # Location model
+│   │   ├── Notification.js         # Notification model
+│   │   └── PerformanceTracking.js  # Performance model
+│   ├── routes/
+│   │   ├── authRoutes.js
+│   │   ├── wasteRoutes.js
+│   │   ├── scheduleRoutes.js
+│   │   ├── userRoutes.js
+│   │   ├── locationRoutes.js
+│   │   ├── notificationRoutes.js
+│   │   └── performanceRoutes.js
+│   ├── utils/
+│   │   └── imageRecognition.js     # Server-side waste categorization
+│   └── server.js                   # Express app entry point
+├── frontend/
+│   ├── css/
+│   │   └── style.css               # Global stylesheet
+│   ├── js/
+│   │   ├── auth.js                 # Auth utilities (checkAuthStatus, logout, redirectByRole)
+│   │   └── wasteSubmission.js      # Image upload, TF.js AI, geocoding, compression
+│   ├── pages/
+│   │   ├── login.html
+│   │   ├── register.html
+│   │   ├── dashboard-resident.html
+│   │   ├── dashboard-admin.html
+│   │   ├── dashboard-collector.html
+│   │   ├── submit-waste.html       # Waste submission with AI image recognition
+│   │   ├── my-submissions.html     # Submission history with status filters
+│   │   ├── collector-submissions.html
+│   │   ├── profile.html
+│   │   ├── admin-users.html
+│   │   ├── admin-schedules.html
+│   │   ├── admin-locations.html
+│   │   ├── admin-analytics.html
+│   │   └── admin-performance.html
+│   └── index.html                  # Redirects to login
+├── database/
+│   ├── wastesense_db_setup.sql     # Single source-of-truth SQL file
+│   └── setup.js                    # Automated DB setup script
+├── uploads/                        # Uploaded waste images (gitignored)
+├── .env.example                    # Environment variable template
+├── package.json
+└── README.md
+```
+
+## Features
+
+### Authentication & User Management
+- Role-based access control: **Resident**, **Collector**, **Admin**
+- Secure password hashing (bcrypt, 10 rounds)
+- Session management (httpOnly cookies, 24h expiry)
+- Login rate limiting
+- Profile management with avatar upload
+
+### Waste Submission (Resident)
+- Image upload with drag-and-drop (max 5MB)
+- Client-side image compression (canvas resize to JPEG)
+- AI-powered waste recognition using TensorFlow.js + MobileNet
+- Color-coded confidence scores (green/yellow/red)
+- User confirms or overrides AI suggestion before submission
+- Waste type and adjective multi-select checkboxes
+- Text address input with geocoding (OpenStreetMap Nominatim)
+- GPS "Use Current Location" button with Leaflet map
+- Upload progress overlay with staged feedback
+- Submissions stored with "Pending" status
+
+### Submission History (Resident)
+- Card-based view of past submissions
+- Status filter buttons (All / Pending / Scheduled / Collected)
+- Shows image, waste types, confidence score, location, date
+- Cancel pending submissions
+
+### Collector Dashboard
+- View pending and assigned waste submissions
+- Filter by waste type, adjective, barangay
+- Accept submissions and mark as collected
+
+### Admin Dashboard
+- System overview with key metrics
+- Manage users (roles, active status)
+- Manage collection schedules (CRUD by location/day/time/waste type)
+- Manage barangay locations
+- Analytics: submission counts, waste category breakdown
+- Performance tracking: completed/missed/delayed collection runs
+
+### Schedule Management
+- Schedules per barangay with day, time, and waste type
+- Residents see schedules filtered by their barangay
+- Admin creates/edits/deletes schedules
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | HTML5, CSS3, JavaScript (ES6+) |
+| Backend | Node.js, Express.js |
+| Database | MySQL 8.0+ / MariaDB 10.4+ (via XAMPP) |
+| Auth | express-session, bcrypt |
+| File Upload | Multer (image validation, 5MB limit) |
+| AI/ML | TensorFlow.js, MobileNet (client-side) |
+| Maps | Leaflet.js, OpenStreetMap |
+| Geocoding | Nominatim API (free, no key required) |
+
+## API Endpoints
+
+### Authentication (`/api/auth`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/register` | Register new user (role forced to resident) |
+| POST | `/login` | Login with email/password |
+| POST | `/logout` | Destroy session |
+| GET | `/me` | Get current authenticated user |
+
+### Waste Submissions (`/api/waste`) - requires auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/submit` | Submit waste with image (multipart) |
+| POST | `/analyze` | Analyze image server-side |
+| GET | `/my-submissions` | Get current user's submissions |
+| GET | `/pending` | Get pending submissions (collector) |
+| GET | `/assigned` | Get collector's assigned submissions |
+| GET | `/:id` | Get submission by ID |
+| PUT | `/:id` | Update submission |
+| POST | `/:id/accept` | Collector accepts submission |
+| POST | `/:id/complete` | Mark submission as collected |
+| DELETE | `/:id` | Delete/cancel submission |
+
+### Schedules (`/api/schedules`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/upcoming` | Get schedules for current user's barangay |
+| GET | `/` | Get all schedules |
+| GET | `/by-location/:id` | Get schedules for a location |
+| POST | `/` | Create schedule (admin) |
+| PUT | `/:id` | Update schedule (admin) |
+| DELETE | `/:id` | Delete schedule (admin) |
+
+### Locations (`/api/locations`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get all locations |
+| GET | `/:id` | Get location by ID |
+| POST | `/` | Create location (admin) |
+| PUT | `/:id` | Update location (admin) |
+| DELETE | `/:id` | Delete location (admin) |
+
+### Users (`/api/users`) - requires auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/profile` | Get current user profile |
+| PUT | `/update-profile` | Update profile |
+| PUT | `/update-profile-picture` | Update avatar |
+| GET | `/` | List all users (admin) |
+| PUT | `/:id` | Update user role/status (admin) |
+
+### Notifications (`/api/notifications`) - requires auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Get current user's notifications |
+| POST | `/:id/read` | Mark notification as read |
+
+### Performance (`/api/performance`) - admin only
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/` | Log a performance entry |
+| GET | `/summary` | Get performance summary |
+
+### System
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/test-db` | Database connection test |
+
+## Default Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@wastesense.ph` | `admin123` |
+
+Register additional resident and collector accounts through the registration page or admin user management.
+
+## Database Schema
+
+6 tables with full foreign key relationships:
+
+- **locations** - Barangays/geographic areas
+- **users** - All user accounts (resident, collector, admin)
+- **schedules** - Collection schedules by location/day/time
+- **waste_submissions** - Waste upload records with AI predictions, coordinates, status
+- **notifications** - User notification messages
+- **performance_tracking** - Collection performance metrics
+
+See `database/wastesense_db_setup.sql` for the complete schema.
+
+## License
+
+ISC

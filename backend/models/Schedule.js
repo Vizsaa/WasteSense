@@ -89,7 +89,7 @@ class Schedule {
       const targetDayIndex = daysOfWeek.indexOf(schedule.collection_day);
       
       let daysUntilTarget = targetDayIndex - currentDayIndex;
-      if (daysUntilTarget <= 0) {
+      if (daysUntilTarget < 0) {
         daysUntilTarget += 7; // Next week
       }
       
