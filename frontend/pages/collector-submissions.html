@@ -235,8 +235,9 @@
                 return;
             }
 
-            if (user.role !== 'collector' && user.role !== 'admin') {
-                alert('Access denied. Collectors and admins only.');
+            // Restrict access strictly to collectors for this module
+            if (user.role !== 'collector') {
+                alert('Access denied. Collectors only.');
                 window.location.href = '/pages/dashboard-resident.html';
                 return;
             }
@@ -482,6 +483,9 @@
                     </div>
                     ` : ''}
                     <div class="submission-actions">
+                        ${submission.latitude && submission.longitude ? `
+                        <button class="btn-small" onclick="viewOnMap(${submission.latitude}, ${submission.longitude})">View on Map</button>
+                        ` : ''}
                         <button class="btn-confirm" onclick="confirmSubmission(${submission.submission_id})">Confirm Pickup</button>
                     </div>
                 `;
@@ -587,7 +591,15 @@
                     <div class="submission-details">
                         <strong>Submitted:</strong> ${new Date(submission.created_at).toLocaleDateString()}
                     </div>
+                    ${submission.collected_at ? `
+                    <div class="submission-details">
+                        <strong>Collected:</strong> ${new Date(submission.collected_at).toLocaleString()}
+                    </div>
+                    ` : ''}
                     <div class="submission-actions">
+                        ${submission.latitude && submission.longitude ? `
+                        <button class="btn-small" onclick="viewOnMap(${submission.latitude}, ${submission.longitude})">View on Map</button>
+                        ` : ''}
                         ${canComplete ? `<button class="btn-complete" onclick="completeSubmission(${submission.submission_id})">✓ Mark as Picked Up</button>` : ''}
                     </div>
                 `;
@@ -648,6 +660,15 @@
                 console.error('Error completing submission:', error);
                 alert('An error occurred while updating. Please try again.');
             }
+        }
+
+        function viewOnMap(lat, lng) {
+            if (!lat || !lng) {
+                alert('Location data is not available for this submission.');
+                return;
+            }
+            const url = `https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}`;
+            window.open(url, '_blank');
         }
 
         function applyFilters() {

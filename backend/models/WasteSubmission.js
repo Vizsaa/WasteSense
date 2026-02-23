@@ -431,6 +431,31 @@ class WasteSubmission {
   }
 
   /**
+   * Atomically claim a pending submission for a collector.
+   * Ensures first-to-accept behavior by only updating rows that are still pending.
+   * @param {number} submissionId
+   * @param {number} collectorId
+   * @returns {Promise<Object|null>} Updated submission if claim succeeded, or null if already claimed
+   */
+  static async claimPendingForCollector(submissionId, collectorId) {
+    const sql = `
+      UPDATE waste_submissions
+      SET collector_id = ?, collection_status = 'scheduled'
+      WHERE submission_id = ?
+        AND collection_status = 'pending'
+        AND (collector_id IS NULL OR collector_id = ?)
+    `;
+
+    const result = await db.execute(sql, [collectorId, submissionId, collectorId]);
+
+    if (!result || result.affectedRows === 0) {
+      return null;
+    }
+
+    return await this.findById(submissionId);
+  }
+
+  /**
    * Delete submission
    * @param {number} submissionId - Submission ID
    * @returns {Promise<boolean>} True if deleted

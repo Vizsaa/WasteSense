@@ -74,8 +74,8 @@
                 return;
             }
 
-            // Verify user is a collector or admin
-            if (user.role !== 'collector' && user.role !== 'admin') {
+            // Verify user is a collector (restrict dashboard to collectors only)
+            if (user.role !== 'collector') {
                 alert('Access denied. This page is for collectors only.');
                 window.location.href = '/pages/login.html';
                 return;

@@ -344,32 +344,38 @@ const acceptSubmission = async (req, res) => {
     }
 
     const { id } = req.params;
-    const submission = await WasteSubmission.findById(id);
+    const submissionId = parseInt(id, 10);
+    const existing = await WasteSubmission.findById(submissionId);
 
-    if (!submission) {
+    if (!existing) {
       return res.status(404).json({
         status: 'error',
         message: 'Submission not found'
       });
     }
 
-    if (submission.collection_status !== 'pending') {
+    if (existing.collection_status !== 'pending') {
       return res.status(400).json({
         status: 'error',
         message: 'Only pending submissions can be accepted'
       });
     }
 
-    // Assign to this collector and mark as scheduled
-    const updated = await WasteSubmission.update(id, {
-      collector_id: req.session.userId,
-      collection_status: 'scheduled'
-    });
+    // Atomically claim this pending submission for the current collector
+    const updated = await WasteSubmission.claimPendingForCollector(submissionId, req.session.userId);
+
+    if (!updated) {
+      // Another collector claimed this submission first
+      return res.status(409).json({
+        status: 'error',
+        message: 'This submission has already been accepted by another collector.'
+      });
+    }
 
     // Notify resident that their request was accepted
     try {
       await Notification.create({
-        user_id: submission.user_id,
+        user_id: existing.user_id,
         schedule_id: null,
         notification_type: 'schedule_change',
         message: 'Your waste collection request has been accepted and scheduled.'
