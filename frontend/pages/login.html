@@ -6,7 +6,7 @@
     <title>Login - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
-<body>
+<body class="auth-page">
     <div class="container">
         <h1>WasteSense</h1>
         <p class="subtitle">Smart Waste Collection System</p>
@@ -24,36 +24,54 @@
                 <input type="password" id="password" name="password" required autocomplete="current-password">
             </div>
             
-            <div class="checkbox-group">
-                <input type="checkbox" id="remember" name="remember">
-                <label for="remember">Remember me</label>
-            </div>
-            
             <button type="submit" class="btn">Login</button>
         </form>
         
         <div class="link">
             Don't have an account? <a href="register.html">Register here</a>
         </div>
+        <div class="link" style="margin-top: 10px; font-size: 13px; color: #888;">
+            Forgot your password? Please contact the system administrator to reset it.
+        </div>
     </div>
     
     <script src="../js/auth.js"></script>
     <script>
-        // Check if already logged in
-        checkAuthStatus();
-        
+        // Check if already logged in — redirect to dashboard if authenticated
+        async function initLogin() {
+            try {
+                const user = await checkAuthStatus();
+                if (user && user.role) {
+                    redirectByRole(user.role);
+                }
+            } catch (e) {
+                console.warn('Auth check skipped:', e);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initLogin);
+        } else {
+            initLogin();
+        }
+
         // Handle login form submission
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
-            
+
             if (!email || !password) {
                 showAlert('Please fill in all fields', 'error');
                 return;
             }
-            
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Logging in...';
+
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
@@ -63,40 +81,35 @@
                     credentials: 'include',
                     body: JSON.stringify({ email, password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok && data.status === 'success') {
                     showAlert('Login successful! Redirecting...', 'success');
-                    
-                    // Redirect based on role
                     setTimeout(() => {
-                        const role = data.data.role;
-                        if (role === 'admin') {
-                            window.location.href = 'dashboard-admin.html';
-                        } else if (role === 'collector') {
-                            window.location.href = 'dashboard-collector.html';
-                        } else {
-                            window.location.href = 'dashboard-resident.html';
-                        }
+                        redirectByRole(data.data.role);
                     }, 1000);
                 } else {
                     showAlert(data.message || 'Login failed. Please check your credentials.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                showAlert('An error occurred. Please try again.', 'error');
+                showAlert('Connection error. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
         });
-        
+
         function showAlert(message, type) {
             const alertContainer = document.getElementById('alert-container');
             alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
+            if (type !== 'success') {
+                setTimeout(() => {
+                    alertContainer.innerHTML = '';
+                }, 5000);
+            }
         }
     </script>
 </body>

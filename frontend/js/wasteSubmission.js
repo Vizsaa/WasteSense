@@ -73,6 +73,28 @@ function setupImageUpload() {
     });
 }
 
+// ── Reset ALL form state for a clean slate ───────────────────────
+function resetForm() {
+    // Uncheck ALL waste type checkboxes
+    document.querySelectorAll('input[name="waste_types"]').forEach(cb => { cb.checked = false; });
+    // Uncheck ALL waste adjective checkboxes
+    document.querySelectorAll('input[name="waste_adjectives"]').forEach(cb => { cb.checked = false; });
+    // Clear description
+    const desc = document.getElementById('wasteDescription');
+    if (desc) desc.value = '';
+    // Hide and reset prediction display
+    const predResult = document.getElementById('predictionResult');
+    if (predResult) predResult.classList.remove('show');
+    document.getElementById('predictedCategory').textContent = '-';
+    document.getElementById('predictionConfidence').textContent = '-';
+    document.getElementById('predictedAdjective').textContent = '-';
+    // Clear previous prediction data
+    predictionData = null;
+    // Clear alert messages
+    const alertContainer = document.getElementById('alert-container');
+    if (alertContainer) alertContainer.innerHTML = '';
+}
+
 // Handle image selection
 async function handleImageSelect(event) {
     const file = event.target.files && event.target.files[0];
@@ -80,31 +102,58 @@ async function handleImageSelect(event) {
         return;
     }
 
+    const uploadSection = document.getElementById('uploadSection');
+    const uploadContent = document.getElementById('uploadContent');
+    const analyzingIndicator = document.getElementById('analyzingIndicator');
+    const analyzeText = analyzingIndicator ? analyzingIndicator.querySelector('p') : null;
+
+    // Stage 1: Validating image
+    analyzingIndicator.style.display = 'block';
+    if (analyzeText) analyzeText.textContent = 'Validating image...';
+    uploadSection.style.pointerEvents = 'none';
+    uploadSection.style.opacity = '0.7';
+
     // Validate file type
     if (!file.type || !file.type.startsWith('image/')) {
-        showAlert('Please select a valid image file.', 'error');
+        showAlert('Please select a valid image file (JPEG, PNG, GIF, or WebP).', 'error');
         currentImageFile = null;
+        analyzingIndicator.style.display = 'none';
+        uploadSection.style.pointerEvents = '';
+        uploadSection.style.opacity = '';
         return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-        showAlert('Image file is too large. Maximum size is 5MB.', 'error');
+        showAlert(`Image file is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 5MB.`, 'error');
         currentImageFile = null;
+        analyzingIndicator.style.display = 'none';
+        uploadSection.style.pointerEvents = '';
+        uploadSection.style.opacity = '';
         return;
     }
 
-    currentImageFile = file;
+    // CRITICAL: Reset form completely before processing new image
+    resetForm();
 
-    // Show preview
+    currentImageFile = file;
+    if (analyzeText) analyzeText.textContent = 'Processing image...';
+
+    // Show preview — keep upload area disabled until analysis finishes
     const reader = new FileReader();
     reader.onload = (e) => {
         const preview = document.getElementById('imagePreview');
         preview.src = e.target.result;
         preview.classList.add('show');
         
-        // Analyze image
+        // Analyze image (upload area stays disabled — analyzeImage re-enables on completion)
         analyzeImage(e.target.result);
+    };
+    reader.onerror = () => {
+        showAlert('Failed to read image file. Please try again.', 'error');
+        analyzingIndicator.style.display = 'none';
+        uploadSection.style.pointerEvents = '';
+        uploadSection.style.opacity = '';
     };
     reader.readAsDataURL(file);
 }
@@ -113,9 +162,18 @@ async function handleImageSelect(event) {
 async function analyzeImage(imageSrc) {
     const analyzingIndicator = document.getElementById('analyzingIndicator');
     const predictionResult = document.getElementById('predictionResult');
+    const analyzeText = analyzingIndicator.querySelector('p');
+    const uploadSection = document.getElementById('uploadSection');
+
+    // Helper to re-enable upload area
+    function enableUploadArea() {
+        uploadSection.style.pointerEvents = '';
+        uploadSection.style.opacity = '';
+    }
     
     analyzingIndicator.style.display = 'block';
     predictionResult.classList.remove('show');
+    if (analyzeText) analyzeText.textContent = 'Loading AI model...';
 
     try {
         // Create image element
@@ -128,9 +186,13 @@ async function analyzeImage(imageSrc) {
                 
                 // Use TensorFlow.js if model is loaded
                 if (model) {
-                    predictions = await model.classify(img);
+                    if (analyzeText) analyzeText.textContent = 'Analyzing waste image...';
+                    // Classify with top-5 for better accuracy
+                    predictions = await model.classify(img, 5);
                     console.log('TensorFlow predictions:', predictions);
                 }
+
+                if (analyzeText) analyzeText.textContent = 'Processing results...';
 
                 // Process predictions
                 const result = processPredictions(predictions);
@@ -142,26 +204,38 @@ async function analyzeImage(imageSrc) {
                 // Auto-fill form
                 autoFillForm(result);
 
+                // Show brief success confirmation
+                showAlert('Image analyzed successfully! Review the predictions below.', 'success');
+
             } catch (error) {
                 console.error('Analysis error:', error);
-                // Fallback to basic prediction
                 const fallbackResult = {
                     category: 'mixed',
-                    confidence: 0.5,
+                    confidence: 30,
                     adjective: 'mixed',
-                    description: 'Unable to determine waste type'
+                    description: 'Unable to determine waste type — please select manually'
                 };
+                predictionData = fallbackResult;
                 displayPrediction(fallbackResult);
                 autoFillForm(fallbackResult);
+                showAlert('AI analysis had low confidence. Please select the correct waste type manually.', 'error');
             } finally {
                 analyzingIndicator.style.display = 'none';
+                enableUploadArea();
             }
+        };
+
+        img.onerror = () => {
+            analyzingIndicator.style.display = 'none';
+            enableUploadArea();
+            showAlert('Failed to load image for analysis. Please try a different image.', 'error');
         };
 
         img.src = imageSrc;
     } catch (error) {
         console.error('Error analyzing image:', error);
         analyzingIndicator.style.display = 'none';
+        enableUploadArea();
         showAlert('Error analyzing image. Please try again.', 'error');
     }
 }
@@ -171,9 +245,9 @@ function processPredictions(predictions) {
     if (!predictions || predictions.length === 0) {
         return {
             category: 'mixed',
-            confidence: 0.5,
+            confidence: 30,
             adjective: 'mixed',
-            description: 'Unable to determine waste type'
+            description: 'Unable to determine waste type — please select manually'
         };
     }
 
@@ -394,18 +468,24 @@ function processPredictions(predictions) {
         'reusable': 'recyclable',
         'recyclable': 'recyclable',
 
-        // Non-biodegradable
-        'bag': 'non-biodegradable',  // Plastic bags
+        // Non-biodegradable (specific items only — generic 'bag'/'plastic'/'dry' stay recyclable above)
         'wrapper': 'non-biodegradable',
         'styrofoam': 'non-biodegradable',
         'foam': 'non-biodegradable',
         'plastic bag': 'non-biodegradable',
         'plastic wrap': 'non-biodegradable',
         'synthetic': 'non-biodegradable',
-        'dry': 'non-biodegradable',
-        'plastic': 'non-biodegradable',
+        'diaper': 'non-biodegradable',
+        'sanitary': 'non-biodegradable',
+        'rubber': 'non-biodegradable',
+        'nylon': 'non-biodegradable',
+        'polystyrene': 'non-biodegradable',
+        'polyester': 'non-biodegradable',
+        'vinyl': 'non-biodegradable',
+        'acrylic': 'non-biodegradable',
+        'fiberglass': 'non-biodegradable',
 
-        // Special/Hazardous
+        // Special / E-waste (overrides recyclable for electronics)
         'battery': 'special',
         'electronic': 'special',
         'computer': 'special',
@@ -417,7 +497,15 @@ function processPredictions(predictions) {
         'toxic': 'hazardous',
         'medical': 'special',
         'electrical': 'special',
-        'electronics': 'special'
+        'electronics': 'special',
+        'fluorescent': 'hazardous',
+        'pesticide': 'hazardous',
+        'paint': 'hazardous',
+        'solvent': 'hazardous',
+        'aerosol': 'hazardous',
+        'syringe': 'special',
+        'needle': 'special',
+        'thermometer': 'special'
     };
 
     // Score categories based on predictions with improved confidence calculation
@@ -442,12 +530,20 @@ function processPredictions(predictions) {
         for (const word of words) {
             // Remove common suffixes that might affect matching
             const cleanWord = word.replace(/s$/, '').replace(/ing$/, '').replace(/ed$/, '');
+            if (cleanWord.length < 3) continue; // Skip very short words to avoid false matches
 
             for (const [object, category] of Object.entries(categoryMapping)) {
-                // Check for exact match or substring match
-                if (cleanWord.includes(object) || object.includes(cleanWord)) {
-                    // Apply score with weight based on prediction rank (top predictions get higher weight)
-                    const rankWeight = 1.0 - (topPredictions.indexOf(pred) * 0.1); // Reduce weight for lower-ranked predictions
+                // Require exact match for short keys (<=4 chars), substring for longer
+                let matched = false;
+                if (object.length <= 4 || cleanWord.length <= 4) {
+                    matched = cleanWord === object;
+                } else {
+                    matched = cleanWord.includes(object) || object.includes(cleanWord);
+                }
+
+                if (matched) {
+                    // Apply score with weight based on prediction rank
+                    const rankWeight = 1.0 - (topPredictions.indexOf(pred) * 0.1);
                     categoryScores[category] += score * rankWeight;
                     totalScore += score * rankWeight;
                     break;
@@ -516,44 +612,54 @@ function processPredictions(predictions) {
     };
 }
 
-// Display prediction results
+// Display prediction results with confidence color coding
 function displayPrediction(result) {
-    document.getElementById('predictedCategory').textContent = result.category;
-    document.getElementById('predictionConfidence').textContent = result.confidence;
-    document.getElementById('predictedAdjective').textContent = result.adjective;
+    const categoryEl = document.getElementById('predictedCategory');
+    const confidenceEl = document.getElementById('predictionConfidence');
+    const adjectiveEl = document.getElementById('predictedAdjective');
+
+    categoryEl.textContent = result.category;
+    confidenceEl.textContent = result.confidence;
+    adjectiveEl.textContent = result.adjective;
+
+    // Color-code confidence badge
+    if (result.confidence >= 75) {
+        categoryEl.style.background = '#28a745';
+        confidenceEl.style.color = '#28a745';
+    } else if (result.confidence >= 50) {
+        categoryEl.style.background = '#ffc107';
+        categoryEl.style.color = '#333';
+        confidenceEl.style.color = '#856404';
+    } else {
+        categoryEl.style.background = '#dc3545';
+        confidenceEl.style.color = '#dc3545';
+    }
 
     const predictionResult = document.getElementById('predictionResult');
     predictionResult.classList.add('show');
 }
 
-// Auto-fill form with predictions
+// Auto-fill form with NEW predictions (form is already reset by handleImageSelect)
 function autoFillForm(result) {
-    // Set waste types checkboxes based on predicted category
-    const wasteTypeCheckboxes = document.querySelectorAll('input[name="waste_types"]');
-    wasteTypeCheckboxes.forEach(checkbox => {
-        // Check the predicted category
-        if (checkbox.value === result.category) {
-            checkbox.checked = true;
-        }
-        // Also check 'mixed' if confidence is low
-        if (result.confidence < 60 && result.category === 'mixed') {
-            const mixedCheckbox = document.querySelector('input[name="waste_types"][value="mixed"]');
-            if (mixedCheckbox) mixedCheckbox.checked = true;
-        }
+    // Check ONLY the predicted waste type
+    document.querySelectorAll('input[name="waste_types"]').forEach(cb => {
+        cb.checked = (cb.value === result.category);
+    });
+    // Also check 'mixed' if confidence is very low
+    if (result.confidence < 50) {
+        const mixedCb = document.querySelector('input[name="waste_types"][value="mixed"]');
+        if (mixedCb) mixedCb.checked = true;
+    }
+
+    // Check ONLY the predicted adjective
+    document.querySelectorAll('input[name="waste_adjectives"]').forEach(cb => {
+        cb.checked = (cb.value === result.adjective);
     });
 
-    // Set waste adjectives checkboxes based on predicted adjective
-    const adjectiveCheckboxes = document.querySelectorAll('input[name="waste_adjectives"]');
-    adjectiveCheckboxes.forEach(checkbox => {
-        if (checkbox.value === result.adjective) {
-            checkbox.checked = true;
-        }
-    });
-
-    // Set description
+    // Always set description from new prediction (form was already cleared)
     const descriptionField = document.getElementById('wasteDescription');
-    if (!descriptionField.value) {
-        descriptionField.value = result.description;
+    if (descriptionField) {
+        descriptionField.value = result.description || '';
     }
 }
 
@@ -666,7 +772,123 @@ function getCurrentLocation() {
     );
 }
 
-// Handle form submission
+// ── Client-side image compression ──────────────────────────────────
+// Resizes and compresses to JPEG on a canvas to cut upload size while
+// keeping enough quality for MobileNet recognition.
+function compressImage(file, maxWidth = 1200, quality = 0.8) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width;
+                let h = img.height;
+                if (w > maxWidth) {
+                    h = Math.round(h * maxWidth / w);
+                    w = maxWidth;
+                }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(
+                    (blob) => {
+                        if (!blob) { resolve(file); return; }
+                        const compressed = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+                        console.log(`Compressed: ${(file.size/1024).toFixed(0)}KB → ${(compressed.size/1024).toFixed(0)}KB`);
+                        resolve(compressed);
+                    },
+                    'image/jpeg',
+                    quality
+                );
+            };
+            img.onerror = () => resolve(file); // fallback to original on error
+            img.src = e.target.result;
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+    });
+}
+
+// ── Geocode text address via OpenStreetMap Nominatim ───────────────
+async function geocodeAddress() {
+    const addressField = document.getElementById('addressDescription');
+    const barangaySelect = document.getElementById('barangaySelect');
+    const btn = document.getElementById('geocodeBtn');
+    const status = document.getElementById('geocodeStatus');
+
+    // Build query from address + selected barangay
+    const selectedOption = barangaySelect.options[barangaySelect.selectedIndex];
+    const barangayText = selectedOption && selectedOption.value ? selectedOption.textContent : '';
+    const rawAddress = (addressField.value.trim() + ', ' + barangayText).replace(/,\s*$/, '');
+
+    if (!rawAddress || rawAddress.length < 5) {
+        status.textContent = 'Please enter an address or landmark first.';
+        status.style.color = '#dc3545';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Looking up...';
+    status.textContent = '';
+
+    try {
+        const q = encodeURIComponent(rawAddress + ', Philippines');
+        const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`, {
+            headers: { 'Accept-Language': 'en' }
+        });
+        const results = await resp.json();
+
+        if (results && results.length > 0) {
+            const lat = parseFloat(results[0].lat);
+            const lng = parseFloat(results[0].lon);
+            document.getElementById('latitude').value = lat.toFixed(6);
+            document.getElementById('longitude').value = lng.toFixed(6);
+            updateMapFromLatLng(lat, lng);
+            status.textContent = 'Coordinates set from address.';
+            status.style.color = '#28a745';
+        } else {
+            status.textContent = 'Address not found. Try a more specific address or use GPS.';
+            status.style.color = '#dc3545';
+        }
+    } catch (err) {
+        console.error('Geocoding error:', err);
+        status.textContent = 'Geocoding failed. Please try again or use GPS.';
+        status.style.color = '#dc3545';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Lookup Coordinates from Address';
+    }
+}
+
+// ── Upload overlay helpers ─────────────────────────────────────────
+function showOverlay(statusText, percent, subText) {
+    const overlay = document.getElementById('uploadOverlay');
+    const spinner = document.getElementById('overlaySpinner');
+    const checkmark = document.getElementById('overlayCheckmark');
+    overlay.classList.add('active');
+    spinner.style.display = 'block';
+    checkmark.style.display = 'none';
+    document.getElementById('overlayStatus').textContent = statusText || 'Processing...';
+    document.getElementById('overlayProgressBar').style.width = (percent || 0) + '%';
+    document.getElementById('overlaySubstatus').textContent = subText || '';
+}
+function hideOverlay() {
+    document.getElementById('uploadOverlay').classList.remove('active');
+}
+function showOverlaySuccess(msg) {
+    const spinner = document.getElementById('overlaySpinner');
+    const checkmark = document.getElementById('overlayCheckmark');
+    spinner.style.display = 'none';
+    checkmark.style.display = 'block';
+    checkmark.textContent = '✓';
+    document.getElementById('overlayStatus').textContent = msg || 'Done!';
+    document.getElementById('overlayProgressBar').style.width = '100%';
+    document.getElementById('overlaySubstatus').textContent = '';
+}
+
+// ── Handle form submission with compression + staged overlay ──────
 document.getElementById('wasteForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -675,79 +897,89 @@ document.getElementById('wasteForm').addEventListener('submit', async (e) => {
         return;
     }
 
-    const submitBtn = document.getElementById('submitBtn');
-
-    // Ask for confirmation before actually submitting
-    const confirmed = window.confirm('Submit this waste collection request now?');
-    if (!confirmed) {
+    // Validate selections before confirming
+    const selectedWasteTypes = Array.from(document.querySelectorAll('input[name="waste_types"]:checked')).map(cb => cb.value);
+    if (selectedWasteTypes.length === 0) {
+        showAlert('Please select at least one waste type.', 'error');
+        return;
+    }
+    const selectedWasteAdjectives = Array.from(document.querySelectorAll('input[name="waste_adjectives"]:checked')).map(cb => cb.value);
+    if (selectedWasteAdjectives.length === 0) {
+        showAlert('Please select at least one waste adjective.', 'error');
         return;
     }
 
+    const confirmed = window.confirm('Submit this waste collection request now?');
+    if (!confirmed) return;
+
+    const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
     try {
-        // Create FormData
+        // Stage 1: Compress image
+        showOverlay('Compressing image...', 10, 'Optimizing file size for faster upload');
+        const compressedFile = await compressImage(currentImageFile);
+        const savedPct = currentImageFile.size > 0
+            ? Math.round((1 - compressedFile.size / currentImageFile.size) * 100) : 0;
+
+        // Stage 2: Build form data
+        showOverlay('Preparing submission...', 30, savedPct > 5 ? `Image compressed by ${savedPct}%` : 'Image ready');
         const formData = new FormData();
-        formData.append('image', currentImageFile);
+        formData.append('image', compressedFile);
         formData.append('predicted_category', predictionData?.category || '');
-        
-        // Get selected waste types (checkboxes)
-        const selectedWasteTypes = Array.from(document.querySelectorAll('input[name="waste_types"]:checked'))
-            .map(cb => cb.value);
-        
-        if (selectedWasteTypes.length === 0) {
-            showAlert('Please select at least one waste type.', 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit Waste Collection Request';
-            return;
-        }
-        
-        // Get selected waste adjectives (checkboxes)
-        const selectedWasteAdjectives = Array.from(document.querySelectorAll('input[name="waste_adjectives"]:checked'))
-            .map(cb => cb.value);
-        
-        if (selectedWasteAdjectives.length === 0) {
-            showAlert('Please select at least one waste type/adjective.', 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Submit Waste Collection Request';
-            return;
-        }
-        
+        formData.append('confidence_score', predictionData?.confidence || '');
         formData.append('waste_types', JSON.stringify(selectedWasteTypes));
         formData.append('waste_adjectives', JSON.stringify(selectedWasteAdjectives));
         formData.append('waste_description', document.getElementById('wasteDescription').value);
         formData.append('barangay_id', document.getElementById('barangaySelect').value);
         formData.append('address_description', document.getElementById('addressDescription').value);
-        
         const lat = document.getElementById('latitude').value;
         const lng = document.getElementById('longitude').value;
         if (lat) formData.append('latitude', lat);
         if (lng) formData.append('longitude', lng);
 
-        // Submit to server
-        const response = await fetch('/api/waste/submit', {
-            method: 'POST',
-            credentials: 'include',
-            body: formData
+        // Stage 3: Upload via XHR for progress tracking
+        showOverlay('Uploading...', 40, 'Sending data to server');
+        const result = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/waste/submit', true);
+            xhr.withCredentials = true;
+
+            xhr.upload.addEventListener('progress', (evt) => {
+                if (evt.lengthComputable) {
+                    const pct = Math.round(40 + (evt.loaded / evt.total) * 50); // 40-90%
+                    showOverlay('Uploading...', pct, `${Math.round(evt.loaded/1024)}KB / ${Math.round(evt.total/1024)}KB`);
+                }
+            });
+
+            xhr.onload = () => {
+                try {
+                    resolve({ status: xhr.status, data: JSON.parse(xhr.responseText) });
+                } catch { resolve({ status: xhr.status, data: { status: 'error', message: 'Invalid server response' } }); }
+            };
+            xhr.onerror = () => reject(new Error('Network error'));
+            xhr.send(formData);
         });
 
-        const data = await response.json();
+        // Stage 4: Processing complete
+        showOverlay('Processing...', 95, 'Finalizing submission');
 
-        if (response.ok && data.status === 'success') {
-            showAlert('Waste submission created successfully!', 'success');
-            
-            // Reset form after 2 seconds
+        if (result.status >= 200 && result.status < 300 && result.data.status === 'success') {
+            showOverlaySuccess('Submission created successfully!');
             setTimeout(() => {
+                hideOverlay();
                 window.location.href = 'my-submissions.html';
-            }, 2000);
+            }, 1500);
         } else {
-            showAlert(data.message || 'Failed to submit waste. Please try again.', 'error');
+            hideOverlay();
+            showAlert(result.data.message || 'Failed to submit waste. Please try again.', 'error');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit Waste Collection Request';
         }
     } catch (error) {
         console.error('Submit error:', error);
+        hideOverlay();
         showAlert('An error occurred. Please try again.', 'error');
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Waste Collection Request';

@@ -8,10 +8,10 @@ const register = async (req, res) => {
     const { email, password, confirm_password, full_name, role, phone_number, address, barangay_id } = req.body;
 
     // Validation
-    if (!email || !password || !full_name || !role) {
+    if (!email || !password || !full_name) {
       return res.status(400).json({
         status: 'error',
-        message: 'Email, password, full name, and role are required'
+        message: 'Email, password, and full name are required'
       });
     }
 
@@ -29,13 +29,22 @@ const register = async (req, res) => {
       });
     }
 
-    // Validate role
-    const validRoles = ['resident', 'collector', 'admin'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Invalid role. Must be one of: resident, collector, admin'
-      });
+    // Public registration is restricted to 'resident' role only.
+    // Admin and collector accounts can only be created by an admin.
+    let assignedRole = 'resident';
+    if (role && role !== 'resident') {
+      if (req.session && req.session.userId && req.session.role === 'admin') {
+        const validRoles = ['resident', 'collector', 'admin'];
+        if (!validRoles.includes(role)) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Invalid role. Must be one of: resident, collector, admin'
+          });
+        }
+        assignedRole = role;
+      } else {
+        assignedRole = 'resident';
+      }
     }
 
     // Validate email format
@@ -47,9 +56,9 @@ const register = async (req, res) => {
       });
     }
 
-    // Check if email already exists
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
+    // Check if email already exists (including deactivated accounts)
+    const emailTaken = await User.emailExists(email.trim().toLowerCase());
+    if (emailTaken) {
       return res.status(409).json({
         status: 'error',
         message: 'Email already registered'
@@ -61,7 +70,7 @@ const register = async (req, res) => {
       email: email.trim().toLowerCase(),
       password,
       full_name: full_name.trim(),
-      role,
+      role: assignedRole,
       phone_number: phone_number ? phone_number.trim() : null,
       address: address ? address.trim() : null,
       barangay_id: barangay_id || null

@@ -73,6 +73,30 @@
         .btn-cancel:hover {
             background: #f5c6cb;
         }
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .filter-btn {
+            padding: 6px 16px;
+            border: 2px solid #667eea;
+            border-radius: 20px;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover {
+            background: #f0f0ff;
+        }
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -92,6 +116,12 @@
         </nav>
 
         <div class="content-section">
+            <div class="filter-bar">
+                <button class="filter-btn active" data-filter="all" onclick="filterSubmissions('all', this)">All</button>
+                <button class="filter-btn" data-filter="pending" onclick="filterSubmissions('pending', this)">Pending</button>
+                <button class="filter-btn" data-filter="scheduled" onclick="filterSubmissions('scheduled', this)">Scheduled</button>
+                <button class="filter-btn" data-filter="collected" onclick="filterSubmissions('collected', this)">Collected</button>
+            </div>
             <div id="submissionsContainer">
                 <div class="no-submissions">
                     <p>Loading your submissions...</p>
@@ -102,6 +132,9 @@
 
     <script src="../js/auth.js"></script>
     <script>
+        let allSubmissions = []; // Cache for client-side filtering
+        let activeFilter = 'all';
+
         // Check authentication
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
@@ -122,7 +155,8 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    displaySubmissions(data.data || []);
+                    allSubmissions = data.data || [];
+                    applyFilter();
                 } else {
                     document.getElementById('submissionsContainer').innerHTML = 
                         '<div class="no-submissions"><p>Error loading submissions. Please try again.</p></div>';
@@ -134,14 +168,31 @@
             }
         }
 
+        function filterSubmissions(status, btn) {
+            activeFilter = status;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const filtered = activeFilter === 'all'
+                ? allSubmissions
+                : allSubmissions.filter(s => (s.collection_status || 'pending') === activeFilter);
+            displaySubmissions(filtered);
+        }
+
         function displaySubmissions(submissions) {
             const container = document.getElementById('submissionsContainer');
 
             if (submissions.length === 0) {
+                const isFiltered = activeFilter !== 'all';
                 container.innerHTML = `
                     <div class="no-submissions">
-                        <p>You haven't submitted any waste collection requests yet.</p>
-                        <a href="submit-waste.html" class="btn" style="margin-top: 20px; display: inline-block;">Submit Your First Waste</a>
+                        <p>${isFiltered
+                            ? `No ${activeFilter} submissions found.`
+                            : "You haven't submitted any waste collection requests yet."}</p>
+                        ${!isFiltered ? '<a href="submit-waste.html" class="btn" style="margin-top: 20px; display: inline-block;">Submit Your First Waste</a>' : ''}
                     </div>
                 `;
                 return;
@@ -204,6 +255,16 @@
 
                 const canCancel = (submission.collection_status || 'pending') === 'pending';
 
+                const confidenceHtml = submission.confidence_score != null
+                    ? `<div class="submission-details"><strong>AI Confidence:</strong> ${parseFloat(submission.confidence_score).toFixed(0)}%</div>`
+                    : '';
+                const descHtml = submission.waste_description
+                    ? `<div class="submission-details"><strong>Description:</strong> ${submission.waste_description}</div>`
+                    : '';
+                const addressHtml = submission.address_description
+                    ? `<div class="submission-details"><strong>Address:</strong> ${submission.address_description}</div>`
+                    : '';
+
                 card.innerHTML = `
                     <span class="submission-status ${statusClass}">${statusText}</span>
                     ${imageHtml}
@@ -215,11 +276,14 @@
                         <strong>Adjectives:</strong><br>
                         <div style="margin-top: 5px;">${adjectiveTagsHtml}</div>
                     </div>
+                    ${confidenceHtml}
+                    ${descHtml}
                     ${submission.barangay_name ? `
                     <div class="submission-details">
                         <strong>Location:</strong> ${submission.barangay_name}, ${submission.municipality || ''}
                     </div>
                     ` : ''}
+                    ${addressHtml}
                     <div class="submission-details">
                         <strong>Submitted:</strong> ${new Date(submission.created_at).toLocaleDateString()}
                     </div>
