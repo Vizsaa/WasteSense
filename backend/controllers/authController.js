@@ -120,10 +120,12 @@ const login = async (req, res) => {
     }
 
     // Create session
+
     req.session.userId = user.user_id;
     req.session.email = user.email;
     req.session.role = user.role;
     req.session.full_name = user.full_name;
+    console.log('Session after login:', req.session);
 
     res.json({
       status: 'success',
