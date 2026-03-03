@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         .cards-grid {
             display: grid;
@@ -55,6 +56,20 @@
         .table-small td {
             font-size: 14px;
             padding: 8px;
+        }
+
+        #heatmapMap {
+            width: 100%;
+            height: 420px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .chart-bar {
+            height: 10px;
+            background: #667eea;
+            border-radius: 999px;
         }
     </style>
 </head>
@@ -133,9 +148,72 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="content-section">
+            <h2>Heat Map (Submissions)</h2>
+            <p style="font-size: 13px; color: #6c757d; margin-bottom: 10px;">
+                Visualizes submission density based on stored latitude/longitude. This is a static view (no real-time tracking).
+            </p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom: 12px;">
+                <div class="form-group" style="min-width: 220px; margin:0;">
+                    <label for="heatmapDays">Range</label>
+                    <select id="heatmapDays">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last 365 days</option>
+                    </select>
+                </div>
+                <button class="btn btn-small" id="reloadHeatmapBtn" type="button">Reload</button>
+                <div style="font-size: 12px; color:#6c757d;">Showing up to 5000 points.</div>
+            </div>
+            <div id="heatmapMap"></div>
+            <div id="heatmapMeta" style="font-size: 12px; color:#6c757d; margin-top: 8px;"></div>
+        </div>
+
+        <div class="content-section">
+            <h2>Temporal Patterns</h2>
+            <p style="font-size: 13px; color: #6c757d; margin-bottom: 10px;">
+                Submissions over time (daily) and by hour of day.
+            </p>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+                <div>
+                    <h3 style="margin-top:0;">Daily</h3>
+                    <table class="locations-table table-small">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Count</th>
+                                <th style="width: 55%;">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyTemporalBody">
+                            <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3 style="margin-top:0;">Hourly</h3>
+                    <table class="locations-table table-small">
+                        <thead>
+                            <tr>
+                                <th>Hour</th>
+                                <th>Count</th>
+                                <th style="width: 55%;">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hourlyTemporalBody">
+                            <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="../js/auth.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
@@ -158,7 +236,104 @@
 
             // Build simple category breakdown from pending + assigned submissions
             buildCategoryBreakdown(pending, assigned);
+
+            setupHeatmap();
         });
+
+        let heatmapMap;
+        let heatLayer;
+
+        function setupHeatmap() {
+            const mapEl = document.getElementById('heatmapMap');
+            if (!mapEl) return;
+
+            heatmapMap = L.map('heatmapMap', { scrollWheelZoom: false }).setView([14.5995, 120.9842], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(heatmapMap);
+
+            heatLayer = L.heatLayer([], { radius: 25, blur: 18, maxZoom: 17 }).addTo(heatmapMap);
+
+            const btn = document.getElementById('reloadHeatmapBtn');
+            const sel = document.getElementById('heatmapDays');
+            if (btn) btn.addEventListener('click', loadHeatmapAndTemporal);
+            if (sel) sel.addEventListener('change', loadHeatmapAndTemporal);
+
+            loadHeatmapAndTemporal();
+        }
+
+        async function loadHeatmapAndTemporal() {
+            const days = document.getElementById('heatmapDays')?.value || '30';
+            const meta = document.getElementById('heatmapMeta');
+
+            try {
+                if (meta) meta.textContent = 'Loading heat map data...';
+
+                const resp = await fetch(`/api/analytics/heatmap?days=${encodeURIComponent(days)}`, { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Failed to load analytics');
+                }
+
+                const points = data.data?.points || [];
+                const temporal = data.data?.temporal || { daily: [], hourly: [] };
+
+                // Heat layer points: [lat,lng,weight]
+                const heatPoints = points.map(p => [p.lat, p.lng, p.weight || 1]);
+                heatLayer.setLatLngs(heatPoints);
+
+                // Fit bounds if we have points
+                if (points.length > 0) {
+                    const bounds = L.latLngBounds(points.map(p => [p.lat, p.lng]));
+                    heatmapMap.fitBounds(bounds.pad(0.2));
+                }
+
+                if (meta) {
+                    const withCoords = points.length;
+                    meta.textContent = withCoords === 0
+                        ? 'No submissions with coordinates found for the selected range.'
+                        : `Loaded ${withCoords} geocoded submissions from the last ${data.data.range_days} days.`;
+                }
+
+                renderTemporalTable('dailyTemporalBody', temporal.daily || [], (row) => String(row.day || ''));
+                renderTemporalTable('hourlyTemporalBody', temporal.hourly || [], (row) => {
+                    const hr = row.hour;
+                    return (hr === 0 || hr) ? `${String(hr).padStart(2, '0')}:00` : '';
+                });
+            } catch (err) {
+                console.error(err);
+                if (meta) meta.textContent = 'Error loading heat map data.';
+                const dailyBody = document.getElementById('dailyTemporalBody');
+                const hourlyBody = document.getElementById('hourlyTemporalBody');
+                if (dailyBody) dailyBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Error loading data.</td></tr>';
+                if (hourlyBody) hourlyBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Error loading data.</td></tr>';
+            }
+        }
+
+        function renderTemporalTable(tbodyId, rows, labelFn) {
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+
+            if (!rows || rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No data.</td></tr>';
+                return;
+            }
+
+            const max = Math.max(...rows.map(r => Number(r.count) || 0), 1);
+
+            tbody.innerHTML = rows.map(r => {
+                const count = Number(r.count) || 0;
+                const pct = Math.round((count / max) * 100);
+                const label = labelFn(r);
+                return `
+                    <tr>
+                        <td>${escapeHtml(label)}</td>
+                        <td>${count}</td>
+                        <td><div class="chart-bar" style="width:${pct}%;"></div></td>
+                    </tr>
+                `;
+            }).join('');
+        }
 
         async function loadPendingSubmissions() {
             try {
@@ -293,6 +468,15 @@
             setTimeout(() => {
                 alertContainer.innerHTML = '';
             }, 5000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         }
     </script>
 </body>

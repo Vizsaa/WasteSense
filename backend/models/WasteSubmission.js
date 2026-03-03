@@ -465,6 +465,94 @@ class WasteSubmission {
     await db.query(sql, [submissionId]);
     return true;
   }
+
+  /**
+   * Admin: list all submissions with optional filters.
+   * @param {Object} opts
+   * @param {string|null} opts.status - pending|scheduled|collected
+   * @param {number|null} opts.barangay_id
+   * @param {string|null} opts.from_date - YYYY-MM-DD
+   * @param {string|null} opts.to_date - YYYY-MM-DD
+   * @param {number} opts.limit
+   * @param {number} opts.offset
+   */
+  static async listAllForAdmin(opts = {}) {
+    const status = opts.status || null;
+    const barangayId = opts.barangay_id || null;
+    const fromDate = opts.from_date || null;
+    const toDate = opts.to_date || null;
+
+    const limit = Math.min(Math.max(parseInt(opts.limit, 10) || 50, 1), 200);
+    const offset = Math.max(parseInt(opts.offset, 10) || 0, 0);
+
+    let sql = `
+      SELECT
+        ws.*,
+        u.full_name,
+        u.email,
+        u.phone_number,
+        l.barangay_name,
+        l.municipality,
+        l.province
+      FROM waste_submissions ws
+      LEFT JOIN users u ON ws.user_id = u.user_id
+      LEFT JOIN locations l ON ws.barangay_id = l.location_id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (status) {
+      sql += ` AND ws.collection_status = ?`;
+      params.push(status);
+    }
+
+    if (barangayId) {
+      sql += ` AND ws.barangay_id = ?`;
+      params.push(barangayId);
+    }
+
+    if (fromDate) {
+      sql += ` AND DATE(ws.created_at) >= ?`;
+      params.push(fromDate);
+    }
+
+    if (toDate) {
+      sql += ` AND DATE(ws.created_at) <= ?`;
+      params.push(toDate);
+    }
+
+    sql += ` ORDER BY ws.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(limit, offset);
+
+    const [rows] = await db.query(sql, params);
+
+    return (rows || []).map(row => {
+      if (row.waste_types) {
+        try {
+          row.waste_types = JSON.parse(row.waste_types);
+        } catch {
+          row.waste_types = [];
+        }
+      } else {
+        row.waste_types = [];
+      }
+
+      if (row.waste_adjectives) {
+        try {
+          row.waste_adjectives = JSON.parse(row.waste_adjectives);
+        } catch {
+          row.waste_adjectives = [];
+        }
+      } else if (row.waste_adjective) {
+        row.waste_adjectives = [row.waste_adjective];
+      } else {
+        row.waste_adjectives = [];
+      }
+
+      return row;
+    });
+  }
 }
 
 module.exports = WasteSubmission;

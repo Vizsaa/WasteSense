@@ -1,5 +1,6 @@
 const Schedule = require('../models/Schedule');
 const User = require('../models/User');
+const WasteCategory = require('../models/WasteCategory');
 
 /**
  * Get user's upcoming schedules
@@ -113,8 +114,38 @@ const createSchedule = async (req, res) => {
       });
     }
 
+    const body = req.body || {};
+    let waste_category_id = body.waste_category_id;
+
+    if (!waste_category_id && body.waste_type) {
+      const cat = await WasteCategory.findByKey(String(body.waste_type).trim().toLowerCase());
+      if (!cat) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid waste type/category'
+        });
+      }
+      waste_category_id = cat.category_id;
+    }
+
+    if (!waste_category_id) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'waste_category_id is required'
+      });
+    }
+
+    const parsedCategoryId = parseInt(waste_category_id, 10);
+    if (Number.isNaN(parsedCategoryId)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid waste_category_id'
+      });
+    }
+
     const scheduleData = {
-      ...req.body,
+      ...body,
+      waste_category_id: parsedCategoryId,
       created_by: req.session.userId
     };
 
@@ -155,7 +186,19 @@ const updateSchedule = async (req, res) => {
     }
 
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...(req.body || {}) };
+
+    if (updateData.waste_type !== undefined && updateData.waste_category_id === undefined) {
+      const cat = await WasteCategory.findByKey(String(updateData.waste_type).trim().toLowerCase());
+      if (!cat) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid waste type/category'
+        });
+      }
+      updateData.waste_category_id = cat.category_id;
+      delete updateData.waste_type;
+    }
 
     const schedule = await Schedule.update(id, updateData);
 

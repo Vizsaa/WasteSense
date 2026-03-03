@@ -9,6 +9,9 @@ router.use(requireAuth);
 // Get current user's notifications
 router.get('/', notificationController.getMyNotifications);
 
+// Generate reminder notifications for upcoming schedules
+router.post('/generate-reminders', notificationController.generateScheduleReminders);
+
 // Mark a notification as read
 router.post('/:id/read', notificationController.markNotificationRead);
 

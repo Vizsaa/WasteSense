@@ -21,6 +21,8 @@
                 <li><a href="#" onclick="scrollToSection('scheduleSection')">View Schedule</a></li>
                 <li><a href="submit-waste.html">Submit Waste</a></li>
                 <li><a href="my-submissions.html">My Submissions</a></li>
+                <li><a href="notifications.html">Notifications</a></li>
+                <li><a href="resident-feedback.html">Feedback</a></li>
                 <li><a href="#" onclick="showProfileSection()">Profile</a></li>
             </ul>
         </nav>
@@ -100,8 +102,20 @@
             // Load upcoming schedules and summary stats
             await Promise.all([
                 loadUpcomingSchedules(),
-                loadMySubmissionStats()
+                loadMySubmissionStats(),
+                generateScheduleReminders()
             ]);
+        }
+
+        async function generateScheduleReminders() {
+            try {
+                await fetch('/api/notifications/generate-reminders', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+            } catch (error) {
+                console.error('Error generating reminders:', error);
+            }
         }
 
         if (document.readyState === 'loading') {

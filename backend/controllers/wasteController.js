@@ -105,6 +105,70 @@ const submitWaste = async (req, res) => {
 };
 
 /**
+ * Admin: Get all submissions (any status) with optional filters
+ */
+const getAllSubmissionsAdmin = async (req, res) => {
+  try {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Authentication required'
+      });
+    }
+
+    if (req.session.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Admin access required'
+      });
+    }
+
+    const status = req.query.status ? String(req.query.status).toLowerCase() : null;
+    const allowedStatuses = ['pending', 'scheduled', 'collected'];
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid status filter'
+      });
+    }
+
+    const barangay_id = req.query.barangay_id ? parseInt(req.query.barangay_id, 10) : null;
+    if (req.query.barangay_id !== undefined && (Number.isNaN(barangay_id) || barangay_id < 1)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid barangay_id filter'
+      });
+    }
+
+    const from_date = req.query.from_date ? String(req.query.from_date) : null;
+    const to_date = req.query.to_date ? String(req.query.to_date) : null;
+
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 50;
+    const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
+
+    const submissions = await WasteSubmission.listAllForAdmin({
+      status,
+      barangay_id,
+      from_date,
+      to_date,
+      limit,
+      offset
+    });
+
+    return res.json({
+      status: 'success',
+      data: submissions
+    });
+  } catch (error) {
+    console.error('Get all submissions (admin) error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Failed to get submissions'
+    });
+  }
+};
+
+/**
  * Analyze image and predict category
  * This endpoint can be used for server-side image analysis
  */
@@ -515,6 +579,7 @@ module.exports = {
   analyzeImage,
   getPendingSubmissions,
   getUserSubmissions,
+  getAllSubmissionsAdmin,
   getSubmission,
   updateSubmission,
   deleteSubmission,

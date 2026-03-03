@@ -77,15 +77,37 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================================================
--- 4. TABLE: schedules
+-- 4. TABLE: waste_categories
+--    Admin-configurable waste category list.
+-- ============================================================================
+CREATE TABLE waste_categories (
+    category_id    INT AUTO_INCREMENT PRIMARY KEY,
+    category_key   VARCHAR(50)  NOT NULL,
+    display_name   VARCHAR(100) NOT NULL,
+    description    TEXT         DEFAULT NULL,
+    is_active      TINYINT(1)   NOT NULL DEFAULT 1,
+    created_by     INT          DEFAULT NULL,
+    created_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_category_key (category_key),
+    INDEX idx_active           (is_active),
+
+    CONSTRAINT fk_category_creator
+        FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ============================================================================
+-- 5. TABLE: schedules
 --    Stores garbage collection schedules by area and day of week.
+--    Each schedule is linked to a waste category.
 -- ============================================================================
 CREATE TABLE schedules (
     schedule_id    INT AUTO_INCREMENT PRIMARY KEY,
     location_id    INT NOT NULL,
     collection_day ENUM('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') NOT NULL,
     collection_time TIME NOT NULL,
-    waste_type     ENUM('biodegradable','non-biodegradable','recyclable','mixed') NOT NULL DEFAULT 'mixed',
+    waste_category_id INT NOT NULL,
     is_active      TINYINT(1) NOT NULL DEFAULT 1,
     created_by     INT NOT NULL,
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -97,12 +119,14 @@ CREATE TABLE schedules (
 
     CONSTRAINT fk_schedule_location
         FOREIGN KEY (location_id) REFERENCES locations(location_id) ON DELETE CASCADE,
+    CONSTRAINT fk_schedule_waste_category
+        FOREIGN KEY (waste_category_id) REFERENCES waste_categories(category_id) ON DELETE RESTRICT,
     CONSTRAINT fk_schedule_creator
         FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================================================
--- 5. TABLE: waste_submissions
+-- 6. TABLE: waste_submissions
 --    Stores resident waste upload / classification records.
 -- ============================================================================
 CREATE TABLE waste_submissions (
@@ -112,7 +136,7 @@ CREATE TABLE waste_submissions (
     image_path         VARCHAR(500) DEFAULT NULL,
     predicted_category VARCHAR(50)  DEFAULT NULL,
     confidence_score   DECIMAL(5,2) DEFAULT NULL,
-    confirmed_category ENUM('biodegradable','non-biodegradable','recyclable','special','hazardous','mixed') DEFAULT NULL,
+    confirmed_category VARCHAR(100) DEFAULT NULL,
     waste_types        JSON         DEFAULT NULL,
     waste_adjective    VARCHAR(50)  DEFAULT NULL,
     waste_adjectives   JSON         DEFAULT NULL,
@@ -141,7 +165,7 @@ CREATE TABLE waste_submissions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================================================
--- 6. TABLE: notifications
+-- 7. TABLE: notifications
 --    Stores notification messages sent to users.
 -- ============================================================================
 CREATE TABLE notifications (
@@ -163,8 +187,21 @@ CREATE TABLE notifications (
         FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE feedback (
+    feedback_id   INT AUTO_INCREMENT PRIMARY KEY,
+    user_id       INT NOT NULL,
+    message       TEXT NOT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    INDEX idx_feedback_user (user_id),
+    INDEX idx_feedback_created (created_at),
+
+    CONSTRAINT fk_feedback_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 -- ============================================================================
--- 7. TABLE: performance_tracking
+-- 8. TABLE: performance_tracking
 --    Stores collection performance metrics per schedule.
 -- ============================================================================
 CREATE TABLE performance_tracking (
@@ -189,7 +226,29 @@ CREATE TABLE performance_tracking (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ============================================================================
--- 8. SEED DATA: Locations
+-- 9. TABLE: password_reset_requests
+--    Stores admin-moderated password reset requests.
+-- ============================================================================
+CREATE TABLE password_reset_requests (
+    request_id    INT AUTO_INCREMENT PRIMARY KEY,
+    user_id       INT DEFAULT NULL,
+    email         VARCHAR(255) NOT NULL,
+    request_type  ENUM('change_password') NOT NULL,
+    description   TEXT NOT NULL,
+    status        ENUM('pending','accepted','denied','completed') NOT NULL DEFAULT 'pending',
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    resolved_at   TIMESTAMP NULL DEFAULT NULL,
+
+    INDEX idx_email_status (email, status),
+    INDEX idx_status       (status),
+
+    CONSTRAINT fk_prr_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ============================================================================
+-- 10. SEED DATA: Locations
 -- ============================================================================
 INSERT INTO locations (barangay_name, municipality, province, zone_or_street) VALUES
     ('Barangay Poblacion',   'Sample Municipality', 'Sample Province', 'Zone 1'),
@@ -197,7 +256,7 @@ INSERT INTO locations (barangay_name, municipality, province, zone_or_street) VA
     ('Barangay Santa Maria', 'Sample Municipality', 'Sample Province', 'Zone 3');
 
 -- ============================================================================
--- 9. SEED DATA: Admin User
+-- 11. SEED DATA: Admin User
 --    Email:    admin@wastesense.ph
 --    Password: admin123  (bcrypt, 10 salt rounds)
 -- ============================================================================
@@ -211,19 +270,30 @@ INSERT INTO users (email, password_hash, full_name, role, phone_number, address,
      NULL);
 
 -- ============================================================================
--- 10. SEED DATA: Collection Schedules
+-- 12. SEED DATA: Waste Categories
+-- ============================================================================
+INSERT INTO waste_categories (category_key, display_name, description, created_by) VALUES
+    ('biodegradable',      'Biodegradable',      'Organic / compostable waste', 1),
+    ('non-biodegradable',  'Non-Biodegradable',  'Residual waste that is not compostable', 1),
+    ('recyclable',         'Recyclable',         'Recyclable materials like plastic, glass, paper, metal', 1),
+    ('mixed',              'Mixed',              'Mixed or unknown waste type', 1),
+    ('special',            'Special Waste',      'Special handling (e-waste, medical, etc.)', 1),
+    ('hazardous',          'Hazardous',          'Hazardous/toxic materials', 1);
+
+-- ============================================================================
+-- 13. SEED DATA: Collection Schedules
 --     Barangay Poblacion (location_id=1): Mon/Wed/Fri 08:00
 --     Barangay San Jose  (location_id=2): Tue/Thu 09:00
 --     Barangay Santa Maria (location_id=3): Mon/Thu 10:00
 -- ============================================================================
-INSERT INTO schedules (location_id, collection_day, collection_time, waste_type, created_by) VALUES
-    (1, 'Monday',    '08:00:00', 'biodegradable',     1),
-    (1, 'Wednesday', '08:00:00', 'non-biodegradable', 1),
-    (1, 'Friday',    '08:00:00', 'recyclable',        1),
-    (2, 'Tuesday',   '09:00:00', 'biodegradable',     1),
-    (2, 'Thursday',  '09:00:00', 'non-biodegradable', 1),
-    (3, 'Monday',    '10:00:00', 'mixed',             1),
-    (3, 'Thursday',  '10:00:00', 'mixed',             1);
+INSERT INTO schedules (location_id, collection_day, collection_time, waste_category_id, created_by) VALUES
+    (1, 'Monday',    '08:00:00', (SELECT category_id FROM waste_categories WHERE category_key='biodegradable'),     1),
+    (1, 'Wednesday', '08:00:00', (SELECT category_id FROM waste_categories WHERE category_key='non-biodegradable'), 1),
+    (1, 'Friday',    '08:00:00', (SELECT category_id FROM waste_categories WHERE category_key='recyclable'),        1),
+    (2, 'Tuesday',   '09:00:00', (SELECT category_id FROM waste_categories WHERE category_key='biodegradable'),     1),
+    (2, 'Thursday',  '09:00:00', (SELECT category_id FROM waste_categories WHERE category_key='non-biodegradable'), 1),
+    (3, 'Monday',    '10:00:00', (SELECT category_id FROM waste_categories WHERE category_key='mixed'),             1),
+    (3, 'Thursday',  '10:00:00', (SELECT category_id FROM waste_categories WHERE category_key='mixed'),             1);
 
 -- ============================================================================
 -- DONE. The database is ready.

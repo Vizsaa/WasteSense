@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .notif-card {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border: 1px solid #f1f3f5;
+        }
+        .notif-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        .notif-type {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .notif-message {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.45;
+        }
+        .notif-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+        .btn-inline {
+            width: auto;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .badge-unread { background: #fff3cd; color: #856404; }
+        .badge-read { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Notifications</h1>
+            <p>View reminders and updates about your submissions and schedules.</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul id="navLinks">
+                <li><a href="dashboard-resident.html">Dashboard</a></li>
+                <li><a href="notifications.html">Notifications</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>Inbox</h2>
+            <div id="alert-container"></div>
+
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                <div class="form-group" style="min-width:220px; margin:0;">
+                    <label for="limitSelect">Show</label>
+                    <select id="limitSelect">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <button class="btn btn-small btn-inline" id="reloadBtn" type="button">Reload</button>
+                <div style="font-size:12px; color:#6c757d;">Tip: Click “Mark as read” to clear unread badges.</div>
+            </div>
+
+            <div id="notificationsContainer" style="margin-top: 14px; display:grid; gap: 12px;">
+                <div class="placeholder">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        let currentUser;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            currentUser = await checkAuthStatus();
+            if (!currentUser) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            renderNav(currentUser.role);
+
+            document.getElementById('reloadBtn').addEventListener('click', loadNotifications);
+            document.getElementById('limitSelect').addEventListener('change', loadNotifications);
+
+            await loadNotifications();
+        });
+
+        function renderNav(role) {
+            const ul = document.getElementById('navLinks');
+            if (!ul) return;
+
+            let dash = 'dashboard-resident.html';
+            if (role === 'admin') dash = 'dashboard-admin.html';
+            if (role === 'collector') dash = 'dashboard-collector.html';
+
+            ul.innerHTML = `
+                <li><a href="${dash}">← Back to Dashboard</a></li>
+                <li><a href="notifications.html">Notifications</a></li>
+            `;
+        }
+
+        async function loadNotifications() {
+            const container = document.getElementById('notificationsContainer');
+            const limit = document.getElementById('limitSelect').value || '20';
+            container.innerHTML = '<div class="placeholder">Loading...</div>';
+
+            try {
+                const resp = await fetch(`/api/notifications?limit=${encodeURIComponent(limit)}`, { credentials: 'include' });
+                const data = await resp.json();
+
+                if (!resp.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Failed to load notifications');
+                }
+
+                const items = data.data || [];
+                if (items.length === 0) {
+                    container.innerHTML = '<div class="placeholder">No notifications yet.</div>';
+                    return;
+                }
+
+                container.innerHTML = items.map(n => {
+                    const sentAt = n.sent_at ? new Date(n.sent_at).toLocaleString() : '';
+                    const badge = n.is_read ? '<span class="badge badge-read">Read</span>' : '<span class="badge badge-unread">Unread</span>';
+                    const btn = n.is_read ? '' : `<button class="btn btn-small btn-inline btn-secondary" onclick="markRead(${n.notification_id})">Mark as read</button>`;
+
+                    return `
+                        <div class="notif-card">
+                            <div class="notif-meta">
+                                <div>
+                                    <span class="notif-type">${escapeHtml(n.notification_type || 'system')}</span>
+                                    &nbsp;${badge}
+                                </div>
+                                <div>${escapeHtml(sentAt)}</div>
+                            </div>
+                            <div class="notif-message">${escapeHtml(n.message || '')}</div>
+                            <div class="notif-actions">${btn}</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                showAlert('Error loading notifications. Please try again.', 'error');
+                container.innerHTML = '<div class="placeholder">Error loading notifications.</div>';
+            }
+        }
+
+        async function markRead(id) {
+            try {
+                const resp = await fetch(`/api/notifications/${id}/read`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Failed to mark as read');
+                }
+                await loadNotifications();
+            } catch (err) {
+                console.error(err);
+                showAlert('Failed to update notification.', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            if (!alertContainer) return;
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+    </script>
+</body>
+</html>

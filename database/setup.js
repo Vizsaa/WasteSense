@@ -34,6 +34,23 @@ async function setupDatabase() {
     
     // Use the database
     await connection.query(`USE ${dbName}`);
+
+    // If tables already exist, drop them so the setup can be re-run safely
+    // This keeps the script idempotent for local development.
+    console.log('\n🧹 Resetting existing tables (if any)...');
+    const [existingTables] = await connection.query('SHOW TABLES');
+    const tableNames = (existingTables || []).map(t => Object.values(t)[0]).filter(Boolean);
+
+    if (tableNames.length > 0) {
+      await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+      for (const table of tableNames) {
+        await connection.query(`DROP TABLE IF EXISTS \`${table}\``);
+      }
+      await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+      console.log(`✅ Dropped ${tableNames.length} existing table(s)`);
+    } else {
+      console.log('✅ No existing tables found');
+    }
     
     // Read and execute the consolidated SQL setup file
     console.log('\n📋 Running wastesense_db_setup.sql...');

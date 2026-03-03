@@ -7,6 +7,7 @@ let currentImageFile = null;
 let predictionData = null;
 let mapInstance = null;
 let mapMarker = null;
+let wasteCategories = [];
 
 // Initialize TensorFlow.js model
 async function loadModel() {
@@ -37,12 +38,45 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Load barangays
     await loadBarangays();
 
+    // Load admin-configured waste categories
+    await loadWasteCategories();
+
     // Setup image upload
     setupImageUpload();
 
     // Setup interactive map if Leaflet is available
     initMapIfAvailable();
 });
+
+async function loadWasteCategories() {
+    const container = document.getElementById('wasteTypesContainer');
+    try {
+        const response = await fetch('/api/categories', { credentials: 'include' });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            throw new Error(data.message || 'Failed to load categories');
+        }
+        wasteCategories = data.data || [];
+        if (!container) return;
+
+        if (wasteCategories.length === 0) {
+            container.innerHTML = '<div style="color:#666; font-size: 13px;">No categories available. Please contact your admin.</div>';
+            return;
+        }
+
+        container.innerHTML = wasteCategories.map(cat => `
+            <label style="display:flex; align-items:center; cursor:pointer;">
+                <input type="checkbox" name="waste_types" value="${cat.category_key}" style="width:auto; margin-right:8px;">
+                <span>${cat.display_name}</span>
+            </label>
+        `).join('');
+    } catch (err) {
+        console.error('Load categories error:', err);
+        if (container) {
+            container.innerHTML = '<div style="color:#666; font-size: 13px;">Failed to load categories. Please refresh.</div>';
+        }
+    }
+}
 
 // Setup image upload handlers
 function setupImageUpload() {

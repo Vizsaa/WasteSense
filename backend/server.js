@@ -10,6 +10,13 @@ const db = require('./config/db.config');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+function requireAdminPage(req, res, next) {
+  if (req.session && req.session.userId && req.session.role === 'admin') {
+    return next();
+  }
+  return res.redirect('/pages/login.html');
+}
+
 // Middleware
 app.use(cors({
   origin: 'http://localhost:3000',
@@ -31,6 +38,17 @@ app.use(session({
   }
 }));
 
+// Server-side protection for admin pages (prevents direct navigation by non-admins)
+app.get([
+  '/pages/dashboard-admin.html',
+  /^\/pages\/admin-.*\.html$/
+], requireAdminPage, (req, res) => {
+  const reqPath = typeof req.route.path === 'string' ? req.route.path : req.path;
+  const safePath = reqPath.startsWith('/pages/') ? reqPath : '/pages/login.html';
+  const relativeToFrontend = safePath.replace(/^\/+/, '');
+  res.sendFile(path.join(__dirname, '../frontend', relativeToFrontend));
+});
+
 // Serve static files from frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -45,6 +63,9 @@ const scheduleRoutes = require('./routes/scheduleRoutes');
 const userRoutes = require('./routes/userRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const performanceRoutes = require('./routes/performanceRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/waste', wasteRoutes);
@@ -53,6 +74,9 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/performance', performanceRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Root route - redirect to login
 app.get('/', (req, res) => {

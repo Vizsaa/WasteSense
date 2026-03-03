@@ -135,6 +135,72 @@ class User {
   }
 
   /**
+   * Find user by ID (admin view; includes inactive users)
+   * @param {number} userId - User ID
+   * @returns {Promise<Object|null>}
+   */
+  static async findByIdAdmin(userId) {
+    const sql = `
+      SELECT
+        user_id,
+        email,
+        full_name,
+        role,
+        phone_number,
+        address,
+        barangay_id,
+        profile_picture,
+        is_active,
+        created_at,
+        updated_at
+      FROM users
+      WHERE user_id = ?
+    `;
+    const [rows] = await db.query(sql, [userId]);
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  /**
+   * Admin: update user profile fields + role/active
+   * @param {number} userId
+   * @param {Object} updateData
+   * @returns {Promise<Object|null>}
+   */
+  static async updateAdminFull(userId, updateData) {
+    const allowedFields = ['full_name', 'phone_number', 'address', 'barangay_id', 'role', 'is_active'];
+    const updates = [];
+    const values = [];
+
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        updates.push(`${field} = ?`);
+        values.push(updateData[field]);
+      }
+    }
+
+    if (updates.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    values.push(userId);
+    const sql = `UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`;
+    await db.query(sql, values);
+    return await this.findByIdAdmin(userId);
+  }
+
+  /**
+   * Admin: reset a user's password
+   * @param {number} userId
+   * @param {string} newPassword
+   */
+  static async setPassword(userId, newPassword) {
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(newPassword, saltRounds);
+    await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [password_hash, userId]);
+    return await this.findByIdAdmin(userId);
+  }
+
+  /**
    * Verify user password
    * @param {string} plainPassword - Plain text password
    * @param {string} hashedPassword - Hashed password from database

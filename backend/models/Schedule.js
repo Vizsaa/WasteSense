@@ -10,10 +10,13 @@ class Schedule {
     const sql = `
       SELECT 
         s.*,
+        wc.category_key AS waste_type,
+        wc.display_name AS waste_category_name,
         l.barangay_name,
         l.municipality,
         l.province
       FROM schedules s
+      LEFT JOIN waste_categories wc ON s.waste_category_id = wc.category_id
       LEFT JOIN locations l ON s.location_id = l.location_id
       WHERE s.location_id = ? AND s.is_active = TRUE
       ORDER BY s.collection_day
@@ -32,10 +35,13 @@ class Schedule {
     const sql = `
       SELECT 
         s.*,
+        wc.category_key AS waste_type,
+        wc.display_name AS waste_category_name,
         l.barangay_name,
         l.municipality,
         l.province
       FROM schedules s
+      LEFT JOIN waste_categories wc ON s.waste_category_id = wc.category_id
       LEFT JOIN locations l ON s.location_id = l.location_id
       LEFT JOIN users u ON u.barangay_id = l.location_id
       WHERE u.user_id = ? AND s.is_active = TRUE
@@ -55,10 +61,13 @@ class Schedule {
     const sql = `
       SELECT 
         s.*,
+        wc.category_key AS waste_type,
+        wc.display_name AS waste_category_name,
         l.barangay_name,
         l.municipality,
         l.province
       FROM schedules s
+      LEFT JOIN waste_categories wc ON s.waste_category_id = wc.category_id
       LEFT JOIN locations l ON s.location_id = l.location_id
       LEFT JOIN users u ON u.barangay_id = l.location_id
       WHERE u.user_id = ? 
@@ -118,13 +127,13 @@ class Schedule {
       location_id,
       collection_day,
       collection_time,
-      waste_type,
+      waste_category_id,
       created_by
     } = scheduleData;
 
     const sql = `
       INSERT INTO schedules
-      (location_id, collection_day, collection_time, waste_type, created_by)
+      (location_id, collection_day, collection_time, waste_category_id, created_by)
       VALUES (?, ?, ?, ?, ?)
     `;
 
@@ -132,7 +141,7 @@ class Schedule {
       location_id,
       collection_day,
       collection_time,
-      waste_type || 'mixed',
+      waste_category_id,
       created_by
     ];
 
@@ -149,10 +158,13 @@ class Schedule {
     const sql = `
       SELECT 
         s.*,
+        wc.category_key AS waste_type,
+        wc.display_name AS waste_category_name,
         l.barangay_name,
         l.municipality,
         l.province
       FROM schedules s
+      LEFT JOIN waste_categories wc ON s.waste_category_id = wc.category_id
       LEFT JOIN locations l ON s.location_id = l.location_id
       WHERE s.schedule_id = ?
     `;
@@ -171,7 +183,7 @@ class Schedule {
       'location_id',
       'collection_day',
       'collection_time',
-      'waste_type',
+      'waste_category_id',
       'is_active'
     ];
 

@@ -236,33 +236,10 @@
 
                 <div class="form-group">
                     <label>Waste Types (Select all that apply) *</label>
-                    <div class="checkbox-group-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" name="waste_types" value="biodegradable" style="width: auto; margin-right: 8px;">
-                            <span>Biodegradable</span>
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" name="waste_types" value="non-biodegradable" style="width: auto; margin-right: 8px;">
-                            <span>Non-Biodegradable</span>
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" name="waste_types" value="recyclable" style="width: auto; margin-right: 8px;">
-                            <span>Recyclable</span>
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" name="waste_types" value="special" style="width: auto; margin-right: 8px;">
-                            <span>Special Waste</span>
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" name="waste_types" value="hazardous" style="width: auto; margin-right: 8px;">
-                            <span>Hazardous</span>
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" name="waste_types" value="mixed" style="width: auto; margin-right: 8px;">
-                            <span>Mixed</span>
-                        </label>
+                    <div id="wasteTypesContainer" class="checkbox-group-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
+                        <div style="color:#666; font-size: 13px;">Loading waste categories...</div>
                     </div>
-                    <small style="color: #666; display: block; margin-top: 5px;">Auto-selected from image recognition. You can modify selections.</small>
+                    <small style="color: #666; display: block; margin-top: 5px;">Categories are configured by admins. AI will auto-select when possible.</small>
                 </div>
 
                 <div class="form-group">

@@ -96,12 +96,9 @@
                         <input type="time" id="collectionTime" required>
                     </div>
                     <div class="form-group">
-                        <label for="wasteType">Waste Type *</label>
-                        <select id="wasteType" required>
-                            <option value="mixed">Mixed</option>
-                            <option value="biodegradable">Biodegradable</option>
-                            <option value="non-biodegradable">Non-biodegradable</option>
-                            <option value="recyclable">Recyclable</option>
+                        <label for="wasteCategory">Waste Category *</label>
+                        <select id="wasteCategory" required>
+                            <option value="">Loading categories...</option>
                         </select>
                     </div>
                 </div>
@@ -155,6 +152,7 @@
     <script>
         let allLocations = [];
         let allSchedules = [];
+        let allCategories = [];
 
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
@@ -170,6 +168,7 @@
             }
 
             await loadLocations();
+            await loadCategories();
             await loadSchedules();
         });
 
@@ -213,6 +212,29 @@
             }
         }
 
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories', { credentials: 'include' });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load categories');
+                allCategories = data.data || [];
+
+                const select = document.getElementById('wasteCategory');
+                select.innerHTML = '<option value="">Select category</option>';
+                allCategories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.category_id;
+                    opt.textContent = c.display_name;
+                    select.appendChild(opt);
+                });
+            } catch (error) {
+                console.error(error);
+                showAlert('Error loading waste categories. Please refresh.', 'error');
+                const select = document.getElementById('wasteCategory');
+                if (select) select.innerHTML = '<option value="">Error loading</option>';
+            }
+        }
+
         function renderSchedules() {
             const tbody = document.getElementById('schedulesTableBody');
             const filterLocationId = document.getElementById('filterLocation').value;
@@ -232,7 +254,7 @@
                     <td>${s.municipality || ''}</td>
                     <td>${s.collection_day}</td>
                     <td>${s.collection_time}</td>
-                    <td>${s.waste_type}</td>
+                    <td>${s.waste_category_name || s.waste_type || ''}</td>
                     <td>${s.is_active ? 'Yes' : 'No'}</td>
                     <td>
                         <button class="btn btn-secondary btn-small" onclick="toggleScheduleActive(${s.schedule_id}, ${s.is_active ? 'false' : 'true'})">
@@ -254,10 +276,10 @@
             const location_id = document.getElementById('locationSelect').value;
             const collection_day = document.getElementById('collectionDay').value;
             const collection_time = document.getElementById('collectionTime').value;
-            const waste_type = document.getElementById('wasteType').value;
+            const waste_category_id = document.getElementById('wasteCategory').value;
             const extraDays = Array.from(document.querySelectorAll('.extra-day:checked')).map(cb => cb.value);
 
-            if (!location_id || !collection_day || !collection_time || !waste_type) {
+            if (!location_id || !collection_day || !collection_time || !waste_category_id) {
                 showAlert('Please fill in all required fields.', 'error');
                 return;
             }
@@ -273,7 +295,7 @@
                             location_id,
                             collection_day: day,
                             collection_time,
-                            waste_type
+                            waste_category_id
                         })
                     });
                     const data = await response.json();

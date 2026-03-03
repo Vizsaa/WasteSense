@@ -54,6 +54,27 @@ class Notification {
     await db.query(sql, [notificationId, userId]);
     return this.findById(notificationId);
   }
+
+  /**
+   * Check whether a reminder notification already exists for a given user + schedule on a given day.
+   * @param {number} userId
+   * @param {number} scheduleId
+   * @param {string} isoDay - YYYY-MM-DD
+   * @returns {Promise<boolean>}
+   */
+  static async reminderExistsForDay(userId, scheduleId, isoDay) {
+    const sql = `
+      SELECT notification_id
+      FROM notifications
+      WHERE user_id = ?
+        AND schedule_id = ?
+        AND notification_type = 'reminder'
+        AND DATE(sent_at) = ?
+      LIMIT 1
+    `;
+    const [rows] = await db.query(sql, [userId, scheduleId, isoDay]);
+    return rows && rows.length > 0;
+  }
 }
 
 module.exports = Notification;

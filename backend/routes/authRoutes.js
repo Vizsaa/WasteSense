@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { requireAuth } = require('../middleware/auth');
+const passwordResetController = require('../controllers/passwordResetController');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 // Simple in-memory rate limiter for login
 const loginAttempts = new Map();
@@ -36,6 +37,14 @@ function loginRateLimiter(req, res, next) {
 router.post('/register', authController.register);
 router.post('/login', loginRateLimiter, authController.login);
 router.post('/logout', authController.logout);
+router.post('/password-request', passwordResetController.createRequest);
+router.get('/password-request/status', passwordResetController.getStatusByEmail);
+router.post('/password-reset', passwordResetController.resetApprovedPassword);
+
+// Admin-only password reset request management
+router.get('/password-requests', requireAuth, requireAdmin, passwordResetController.listRequests);
+router.post('/password-requests/:id/accept', requireAuth, requireAdmin, passwordResetController.acceptRequest);
+router.post('/password-requests/:id/deny', requireAuth, requireAdmin, passwordResetController.denyRequest);
 
 // Protected routes
 router.get('/me', requireAuth, authController.getCurrentUser);

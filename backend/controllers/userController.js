@@ -314,6 +314,102 @@ const getAllUsers = async (req, res) => {
 };
 
 /**
+ * Admin: create a new user account (resident/collector/admin)
+ */
+const createUserAdmin = async (req, res) => {
+  try {
+    if (!req.session || req.session.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Admin access required'
+      });
+    }
+
+    const {
+      email,
+      password,
+      full_name,
+      role,
+      phone_number,
+      address,
+      barangay_id
+    } = req.body;
+
+    if (!email || !password || !full_name || !role) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'email, password, full_name, and role are required'
+      });
+    }
+
+    const roleTrimmed = String(role).trim().toLowerCase();
+    const validRoles = ['resident', 'collector', 'admin'];
+    if (!validRoles.includes(roleTrimmed)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid role. Must be resident, collector, or admin.'
+      });
+    }
+
+    const emailTrimmed = String(email).trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailTrimmed)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid email format'
+      });
+    }
+
+    if (String(password).length < 6) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    const emailTaken = await User.emailExists(emailTrimmed);
+    if (emailTaken) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'Email already registered'
+      });
+    }
+
+    const parsedBarangay = barangay_id === null || barangay_id === '' || barangay_id === undefined
+      ? null
+      : parseInt(barangay_id, 10);
+    if (parsedBarangay !== null && Number.isNaN(parsedBarangay)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid barangay_id'
+      });
+    }
+
+    const user = await User.create({
+      email: emailTrimmed,
+      password: String(password),
+      full_name: String(full_name).trim(),
+      role: roleTrimmed,
+      phone_number: phone_number ? String(phone_number).trim() : null,
+      address: address ? String(address).trim() : null,
+      barangay_id: parsedBarangay
+    });
+
+    res.status(201).json({
+      status: 'success',
+      message: 'User created successfully',
+      data: user
+    });
+  } catch (error) {
+    console.error('Admin create user error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to create user'
+    });
+  }
+};
+
+/**
  * Admin: update user role / active status
  */
 const updateUserAdmin = async (req, res) => {
@@ -326,7 +422,14 @@ const updateUserAdmin = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { role, is_active } = req.body;
+    const { role, is_active, full_name, phone_number, address, barangay_id } = req.body;
+    const targetUserId = parseInt(id, 10);
+    if (Number.isNaN(targetUserId)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid user id'
+      });
+    }
 
     const updateData = {};
 
@@ -345,6 +448,36 @@ const updateUserAdmin = async (req, res) => {
       updateData.is_active = Boolean(is_active);
     }
 
+    if (full_name !== undefined) {
+      const nameTrimmed = String(full_name).trim();
+      if (nameTrimmed.length < 2) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Full name must be at least 2 characters long'
+        });
+      }
+      updateData.full_name = nameTrimmed;
+    }
+
+    if (phone_number !== undefined) {
+      updateData.phone_number = phone_number ? String(phone_number).trim() : null;
+    }
+
+    if (address !== undefined) {
+      updateData.address = address ? String(address).trim() : null;
+    }
+
+    if (barangay_id !== undefined) {
+      const parsedBarangay = barangay_id === null || barangay_id === '' ? null : parseInt(barangay_id, 10);
+      if (parsedBarangay !== null && Number.isNaN(parsedBarangay)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid barangay_id'
+        });
+      }
+      updateData.barangay_id = parsedBarangay;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
         status: 'error',
@@ -352,7 +485,23 @@ const updateUserAdmin = async (req, res) => {
       });
     }
 
-    const updated = await User.updateAdmin(id, updateData);
+    // Prevent admin from accidentally locking themselves out
+    if (targetUserId === req.session.userId) {
+      if (updateData.is_active === false) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'You cannot deactivate your own account.'
+        });
+      }
+      if (updateData.role && updateData.role !== 'admin') {
+        return res.status(400).json({
+          status: 'error',
+          message: 'You cannot change your own role away from admin.'
+        });
+      }
+    }
+
+    const updated = await User.updateAdminFull(targetUserId, updateData);
 
     res.json({
       status: 'success',
@@ -368,10 +517,57 @@ const updateUserAdmin = async (req, res) => {
   }
 };
 
+/**
+ * Admin: reset password for any user
+ */
+const resetUserPasswordAdmin = async (req, res) => {
+  try {
+    if (!req.session || req.session.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Admin access required'
+      });
+    }
+
+    const { id } = req.params;
+    const userId = parseInt(id, 10);
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid user id'
+      });
+    }
+
+    const { new_password } = req.body;
+    if (!new_password || String(new_password).length < 6) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'new_password is required and must be at least 6 characters'
+      });
+    }
+
+    const updated = await User.setPassword(userId, String(new_password));
+
+    res.json({
+      status: 'success',
+      message: 'Password reset successfully',
+      data: updated
+    });
+  } catch (error) {
+    console.error('Admin reset password error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to reset password'
+    });
+  }
+};
+
 module.exports = {
   updateProfile,
   updateProfileWithPicture,
   getUserProfile,
   getAllUsers,
-  updateUserAdmin
+  createUserAdmin,
+  updateUserAdmin,
+  resetUserPasswordAdmin
 };

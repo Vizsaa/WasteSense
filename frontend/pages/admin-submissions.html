@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Submissions - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-scheduled { background: #d1ecf1; color: #0c5460; }
+        .badge-collected { background: #d4edda; color: #155724; }
+        .muted { color:#6c757d; font-size: 13px; }
+        .btn-inline { width: auto; padding: 8px 12px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>All Waste Submissions</h1>
+            <p class="muted">View submissions across all statuses (Pending, Scheduled, Collected).</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
+                <li><a href="admin-submissions.html">Submissions</a></li>
+                <li><a href="admin-analytics.html">Analytics</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>Filters</h2>
+            <div id="alert-container"></div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="collected">Collected</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="barangayFilter">Barangay</label>
+                    <select id="barangayFilter">
+                        <option value="">All Barangays</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fromDate">From</label>
+                    <input type="date" id="fromDate">
+                </div>
+                <div class="form-group">
+                    <label for="toDate">To</label>
+                    <input type="date" id="toDate">
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                <button class="btn btn-small btn-inline" id="applyBtn" type="button">Apply</button>
+                <button class="btn btn-small btn-inline btn-secondary" id="clearBtn" type="button">Clear</button>
+                <div class="muted">Tip: Use date filters to view temporal patterns more clearly.</div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>Results</h2>
+            <table class="locations-table table-small">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Resident</th>
+                        <th>Barangay</th>
+                        <th>Description</th>
+                        <th>Map</th>
+                    </tr>
+                </thead>
+                <tbody id="submissionsBody">
+                    <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            if (user.role !== 'admin') {
+                alert('Access denied. Admin only.');
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            document.getElementById('applyBtn').addEventListener('click', loadSubmissions);
+            document.getElementById('clearBtn').addEventListener('click', clearFilters);
+
+            await loadBarangays();
+            await loadSubmissions();
+        });
+
+        async function loadBarangays() {
+            try {
+                const response = await fetch('/api/locations', { credentials: 'include' });
+                const data = await response.json();
+                if (!response.ok || data.status !== 'success') return;
+
+                const select = document.getElementById('barangayFilter');
+                (data.data || []).forEach(loc => {
+                    const opt = document.createElement('option');
+                    opt.value = loc.location_id;
+                    opt.textContent = `${loc.barangay_name}, ${loc.municipality}`;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('barangayFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            loadSubmissions();
+        }
+
+        async function loadSubmissions() {
+            const tbody = document.getElementById('submissionsBody');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading...</td></tr>';
+
+            const params = new URLSearchParams();
+            const status = document.getElementById('statusFilter').value;
+            const barangay = document.getElementById('barangayFilter').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+
+            if (status) params.set('status', status);
+            if (barangay) params.set('barangay_id', barangay);
+            if (fromDate) params.set('from_date', fromDate);
+            if (toDate) params.set('to_date', toDate);
+            params.set('limit', '200');
+            params.set('offset', '0');
+
+            try {
+                const resp = await fetch(`/api/waste/all?${params.toString()}`, { credentials: 'include' });
+                const data = await resp.json();
+
+                if (!resp.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Failed to load submissions');
+                }
+
+                const rows = data.data || [];
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No submissions found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = rows.map(s => {
+                    const created = s.created_at ? new Date(s.created_at).toLocaleString() : '';
+                    const statusKey = (s.collection_status || 'pending').toLowerCase();
+                    const badgeClass = statusKey === 'scheduled' ? 'badge-scheduled' : (statusKey === 'collected' ? 'badge-collected' : 'badge-pending');
+                    const badge = `<span class="status-badge ${badgeClass}">${escapeHtml(statusKey)}</span>`;
+
+                    const barangayText = s.barangay_name ? `${s.barangay_name}${s.municipality ? ', ' + s.municipality : ''}` : '-';
+                    const desc = (s.waste_description || '').slice(0, 80);
+
+                    let mapLink = '-';
+                    if (s.latitude && s.longitude) {
+                        const url = `https://www.google.com/maps?q=${encodeURIComponent(s.latitude)},${encodeURIComponent(s.longitude)}`;
+                        mapLink = `<a href="${url}" target="_blank" rel="noopener">View</a>`;
+                    }
+
+                    return `
+                        <tr>
+                            <td>${s.submission_id}</td>
+                            <td>${badge}</td>
+                            <td>${escapeHtml(created)}</td>
+                            <td>${escapeHtml(s.full_name || '-')}</td>
+                            <td>${escapeHtml(barangayText)}</td>
+                            <td>${escapeHtml(desc)}${(s.waste_description || '').length > 80 ? '…' : ''}</td>
+                            <td>${mapLink}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Error loading submissions.</td></tr>';
+                showAlert('Error loading submissions. Please try again.', 'error');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            if (!alertContainer) return;
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => { alertContainer.innerHTML = ''; }, 5000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+    </script>
+</body>
+</html>

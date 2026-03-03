@@ -22,6 +22,9 @@ router.get('/pending', wasteController.getPendingSubmissions);
 // Get submissions assigned to the logged-in collector
 router.get('/assigned', wasteController.getAssignedSubmissions);
 
+// Admin: get all submissions (any status)
+router.get('/all', wasteController.getAllSubmissionsAdmin);
+
 // Get submission by ID
 router.get('/:id', wasteController.getSubmission);
 

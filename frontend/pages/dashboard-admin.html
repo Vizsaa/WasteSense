@@ -17,11 +17,15 @@
         
         <nav class="nav-menu">
             <ul>
+                <li><a href="admin-submissions.html">Submissions</a></li>
                 <li><a href="admin-schedules.html">Manage Schedules</a></li>
                 <li><a href="admin-users.html">Manage Users</a></li>
                 <li><a href="admin-analytics.html">Analytics</a></li>
                 <li><a href="admin-locations.html">Locations</a></li>
+                <li><a href="admin-categories.html">Waste Categories</a></li>
                 <li><a href="admin-performance.html">Performance</a></li>
+                <li><a href="admin-feedback.html">Feedback</a></li>
+                <li><a href="notifications.html">Notifications</a></li>
                 <li><a href="profile.html">Profile</a></li>
             </ul>
         </nav>
@@ -45,6 +49,26 @@
                     <div class="stat-sub">Residents, collectors, and admins.</div>
                 </div>
             </div>
+        </div>
+        
+        <div class="content-section">
+            <h2>Password Reset Notifications</h2>
+            <p style="font-size: 13px; color:#6c757d; margin-bottom: 10px;">
+                These are pending password change requests submitted from the login page.
+            </p>
+            <table class="locations-table table-small">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Requested At</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="passwordRequestsBody">
+                    <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+                </tbody>
+            </table>
         </div>
         
         <div class="content-section">
@@ -92,7 +116,8 @@
             await Promise.all([
                 loadAdminPending(),
                 loadAdminAssigned(),
-                loadAdminUsers()
+                loadAdminUsers(),
+                loadPasswordRequests()
             ]);
         });
 
@@ -130,6 +155,79 @@
             } catch {
                 document.getElementById('adminUserCount').textContent = '–';
             }
+        }
+
+        async function loadPasswordRequests() {
+            const tbody = document.getElementById('passwordRequestsBody');
+            try {
+                const resp = await fetch('/api/auth/password-requests', { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok || data.status !== 'success') throw new Error();
+                const rows = data.data || [];
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No pending requests.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(r => `
+                    <tr>
+                        <td>${r.email}</td>
+                        <td>${r.created_at ? new Date(r.created_at).toLocaleString() : ''}</td>
+                        <td style="max-width:260px; font-size:13px;">
+                            ${escapeHtml((r.description || '').slice(0, 120))}${(r.description || '').length > 120 ? '…' : ''}
+                        </td>
+                        <td>
+                            <button class="btn btn-small" onclick="viewRequest(${r.request_id})">View</button>
+                            <button class="btn btn-secondary btn-small" onclick="updateRequest(${r.request_id}, 'accepted')">Accept</button>
+                            <button class="btn btn-secondary btn-small" onclick="updateRequest(${r.request_id}, 'denied')">Deny</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Error loading requests.</td></tr>';
+            }
+        }
+
+        async function updateRequest(id, action) {
+            const ok = confirm(`Are you sure you want to ${action} this request?`);
+            if (!ok) return;
+            try {
+                const resp = await fetch(`/api/auth/password-requests/${id}/${action === 'accepted' ? 'accept' : 'deny'}`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.status !== 'success') {
+                    alert(data.message || 'Failed to update request.');
+                }
+                await loadPasswordRequests();
+            } catch (err) {
+                console.error(err);
+                alert('Error updating request.');
+            }
+        }
+
+        async function viewRequest(id) {
+            try {
+                const resp = await fetch('/api/auth/password-requests', { credentials: 'include' });
+                const data = await resp.json();
+                if (!resp.ok || data.status !== 'success') return;
+                const rows = data.data || [];
+                const r = rows.find(x => x.request_id === id);
+                if (!r) return;
+                alert(`Email: ${r.email}\n\nDescription:\n\n${r.description || ''}`);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         }
     </script>
 </body>

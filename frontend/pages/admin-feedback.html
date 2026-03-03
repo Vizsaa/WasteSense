@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback - WasteSense</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .muted { color: #6c757d; font-size: 13px; }
+        .nowrap { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>Resident Feedback</h1>
+            <p class="muted">View feedback entries submitted by residents.</p>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
+                <li><a href="admin-feedback.html">Feedback</a></li>
+            </ul>
+        </nav>
+
+        <div class="content-section">
+            <h2>Feedback List</h2>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                <div class="form-group" style="min-width:220px; margin:0;">
+                    <label for="limitSelect">Show</label>
+                    <select id="limitSelect">
+                        <option value="20">20</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+                <button class="btn btn-small" id="reloadBtn" type="button">Reload</button>
+            </div>
+
+            <div id="alert-container" style="margin-top: 12px;"></div>
+
+            <table class="locations-table table-small" style="margin-top: 12px;">
+                <thead>
+                    <tr>
+                        <th class="nowrap">Date</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody id="feedbackBody">
+                    <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            if (user.role !== 'admin') {
+                alert('Access denied. Admin only.');
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            document.getElementById('reloadBtn').addEventListener('click', loadFeedback);
+            document.getElementById('limitSelect').addEventListener('change', loadFeedback);
+
+            await loadFeedback();
+        });
+
+        async function loadFeedback() {
+            const tbody = document.getElementById('feedbackBody');
+            const limit = document.getElementById('limitSelect').value || '50';
+
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
+
+            try {
+                const resp = await fetch(`/api/feedback?limit=${encodeURIComponent(limit)}`, { credentials: 'include' });
+                const data = await resp.json();
+
+                if (!resp.ok || data.status !== 'success') {
+                    throw new Error(data.message || 'Failed to load feedback');
+                }
+
+                const rows = data.data || [];
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No feedback entries yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = rows.map(r => {
+                    const dt = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                    const name = r.full_name || 'Unknown';
+                    const email = r.email || '-';
+                    const msg = (r.message || '').slice(0, 500);
+                    return `
+                        <tr>
+                            <td class="nowrap">${escapeHtml(dt)}</td>
+                            <td>${escapeHtml(name)}</td>
+                            <td>${escapeHtml(email)}</td>
+                            <td style="max-width: 520px;">${escapeHtml(msg)}${(r.message || '').length > 500 ? '…' : ''}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error(err);
+                showAlert('Error loading feedback. Please try again.', 'error');
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Error loading feedback.</td></tr>';
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            if (!alertContainer) return;
+            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+    </script>
+</body>
+</html>

@@ -26,15 +26,62 @@
             
             <button type="submit" class="btn">Login</button>
         </form>
-        
+
+        <div class="link" style="margin-top: 8px;">
+            <a href="javascript:void(0)" id="forgotLink">Forgot Password?</a>
+        </div>
+
         <div class="link">
             Don't have an account? <a href="register.html">Register here</a>
         </div>
-        <div class="link" style="margin-top: 10px; font-size: 13px; color: #888;">
-            Forgot your password? Please contact the system administrator to reset it.
+    </div>
+
+    <!-- Forgot password modal -->
+    <div id="forgotModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 1000;">
+        <div style="background:#fff; max-width: 540px; width:100%; border-radius: 12px; box-shadow:0 10px 30px rgba(0,0,0,0.3); overflow:hidden;">
+            <div style="padding: 16px 18px; border-bottom: 1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                <h3 style="margin:0; font-size:18px;">Forgot Password</h3>
+                <button type="button" id="forgotCloseBtn" class="btn btn-secondary btn-small">Close</button>
+            </div>
+            <div style="padding: 16px 18px;">
+                <div id="forgot-alert"></div>
+                <form id="forgotForm">
+                    <div class="form-group">
+                        <label for="forgotEmail">Email Address</label>
+                        <input type="email" id="forgotEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="forgotType">Request Type</label>
+                        <select id="forgotType" required>
+                            <option value="change_password">Change Password</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="forgotDescription">Additional details (max 500 characters)</label>
+                        <textarea id="forgotDescription" rows="5" maxlength="500"></textarea>
+                        <small style="font-size:12px; color:#666;">
+                            Additional details (optional). Maximum 500 characters.
+                        </small>
+                    </div>
+                    <div id="forgotStatus" style="font-size: 13px; margin-bottom: 8px;"></div>
+                    <div id="forgotResetContainer" style="display:none; border-top:1px solid #eee; margin-top:12px; padding-top:12px;">
+                        <h4 style="margin:0 0 8px; font-size:14px;">Set New Password (Approved)</h4>
+                        <div class="form-group">
+                            <label for="forgotNewPassword">New Password</label>
+                            <input type="password" id="forgotNewPassword" minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="forgotNewPasswordConfirm">Confirm New Password</label>
+                            <input type="password" id="forgotNewPasswordConfirm" minlength="6">
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="forgotResetBtn">Change Password</button>
+                    </div>
+                    <button type="submit" class="btn">Submit Request</button>
+                </form>
+            </div>
         </div>
     </div>
-    
+
     <script src="../js/auth.js"></script>
     <script>
         // Check if already logged in — redirect to dashboard if authenticated
@@ -111,6 +158,162 @@
                 }, 5000);
             }
         }
+
+        // Forgot password modal logic
+        const forgotModal = document.getElementById('forgotModal');
+        const forgotLink = document.getElementById('forgotLink');
+        const forgotCloseBtn = document.getElementById('forgotCloseBtn');
+
+        forgotLink.addEventListener('click', () => {
+            const emailVal = document.getElementById('email').value.trim();
+            const forgotEmailInput = document.getElementById('forgotEmail');
+            if (emailVal) forgotEmailInput.value = emailVal;
+            openForgotModal();
+        });
+
+        function openForgotModal() {
+            forgotModal.style.display = 'flex';
+            document.getElementById('forgotStatus').textContent = '';
+            document.getElementById('forgot-alert').innerHTML = '';
+        }
+
+        function closeForgotModal() {
+            forgotModal.style.display = 'none';
+        }
+
+        forgotCloseBtn.addEventListener('click', closeForgotModal);
+        forgotModal.addEventListener('click', (e) => {
+            if (e.target === forgotModal) closeForgotModal();
+        });
+
+        // Check request status when email loses focus
+        document.getElementById('forgotEmail').addEventListener('blur', async () => {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const statusEl = document.getElementById('forgotStatus');
+            const resetContainer = document.getElementById('forgotResetContainer');
+            if (!email) {
+                statusEl.textContent = '';
+                resetContainer.style.display = 'none';
+                return;
+            }
+            try {
+                const resp = await fetch('/api/auth/password-request/status?email=' + encodeURIComponent(email), {
+                    credentials: 'include'
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.status !== 'success') {
+                    statusEl.textContent = '';
+                    resetContainer.style.display = 'none';
+                    return;
+                }
+                const st = data.data?.status || 'none';
+                if (st === 'denied') {
+                    statusEl.textContent = 'Request Denied';
+                    statusEl.style.color = '#dc3545';
+                    resetContainer.style.display = 'none';
+                } else if (st === 'accepted') {
+                    statusEl.textContent = 'Request accepted. You may now set a new password below.';
+                    statusEl.style.color = '#198754';
+                    resetContainer.style.display = 'block';
+                } else if (st === 'pending') {
+                    statusEl.textContent = 'Request pending review by admin.';
+                    statusEl.style.color = '#6c757d';
+                    resetContainer.style.display = 'none';
+                } else {
+                    statusEl.textContent = '';
+                    resetContainer.style.display = 'none';
+                }
+            } catch {
+                statusEl.textContent = '';
+                resetContainer.style.display = 'none';
+            }
+        });
+
+        // Submit forgot password request
+        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('forgotEmail').value.trim();
+            const type = document.getElementById('forgotType').value;
+            const description = document.getElementById('forgotDescription').value.trim();
+            const alertBox = document.getElementById('forgot-alert');
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            try {
+                const resp = await fetch('/api/auth/password-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, type, description })
+                });
+                const data = await resp.json();
+                if (resp.ok && data.status === 'success') {
+                    alertBox.innerHTML = '<div class="alert alert-success">Sent to admin, please wait.</div>';
+                    document.getElementById('forgotDescription').value = '';
+                } else {
+                    alertBox.innerHTML = `<div class="alert alert-error">${data.message || 'Failed to submit request.'}</div>`;
+                }
+            } catch (err) {
+                console.error(err);
+                alertBox.innerHTML = '<div class="alert alert-error">An error occurred. Please try again.</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
+            }
+        });
+
+        // Handle approved password reset inside modal
+        document.getElementById('forgotResetBtn').addEventListener('click', async () => {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const newPassword = document.getElementById('forgotNewPassword').value;
+            const confirmPassword = document.getElementById('forgotNewPasswordConfirm').value;
+            const alertBox = document.getElementById('forgot-alert');
+
+            if (!email || !newPassword || !confirmPassword) {
+                alertBox.innerHTML = '<div class="alert alert-error">Please fill in all password fields.</div>';
+                return;
+            }
+            if (newPassword.length < 6) {
+                alertBox.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters long.</div>';
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                alertBox.innerHTML = '<div class="alert alert-error">Passwords do not match.</div>';
+                return;
+            }
+
+            const btn = document.getElementById('forgotResetBtn');
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Changing...';
+
+            try {
+                const resp = await fetch('/api/auth/password-reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        new_password: newPassword,
+                        confirm_password: confirmPassword
+                    })
+                });
+                const data = await resp.json();
+                if (resp.ok && data.status === 'success') {
+                    alertBox.innerHTML = '<div class="alert alert-success">Password changed. You can now log in with your new password.</div>';
+                } else {
+                    const msg = data.message || 'Failed to reset password.';
+                    alertBox.innerHTML = `<div class="alert alert-error">${msg}</div>`;
+                }
+            } catch (err) {
+                console.error(err);
+                alertBox.innerHTML = '<div class="alert alert-error">An error occurred while resetting password.</div>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = original;
+            }
+        });
     </script>
 </body>
 </html>
