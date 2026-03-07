@@ -1,16 +1,18 @@
 const db = require('../config/db.config');
 
 class PasswordResetRequest {
-  static async create({ user_id, email, request_type, description }) {
+  static async create({ user_id, email, request_type, description, metadata }) {
     const sql = `
-      INSERT INTO password_reset_requests (user_id, email, request_type, description)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO password_reset_requests (user_id, email, request_type, description, metadata)
+      VALUES (?, ?, ?, ?, ?)
     `;
+    const metaStr = metadata ? JSON.stringify(metadata) : null;
     const result = await db.execute(sql, [
       user_id || null,
       email,
       request_type,
-      description
+      description,
+      metaStr
     ]);
     return await this.findById(result.insertId);
   }
@@ -23,6 +25,7 @@ class PasswordResetRequest {
         email,
         request_type,
         description,
+        metadata,
         status,
         created_at,
         updated_at,
@@ -42,6 +45,7 @@ class PasswordResetRequest {
         email,
         request_type,
         description,
+        metadata,
         status,
         created_at,
         updated_at,
@@ -59,7 +63,8 @@ class PasswordResetRequest {
     const sql = `
       SELECT
         pr.*,
-        u.full_name
+        u.full_name,
+        u.is_active
       FROM password_reset_requests pr
       LEFT JOIN users u ON pr.user_id = u.user_id
       ORDER BY pr.created_at DESC
@@ -73,7 +78,8 @@ class PasswordResetRequest {
     const sql = `
       SELECT
         pr.*,
-        u.full_name
+        u.full_name,
+        u.is_active
       FROM password_reset_requests pr
       LEFT JOIN users u ON pr.user_id = u.user_id
       WHERE pr.status = 'pending'

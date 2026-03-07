@@ -1,6 +1,7 @@
 const WasteSubmission = require('../models/WasteSubmission');
 const Notification = require('../models/Notification');
-const { predictCategory } = require('../utils/imageRecognition');
+const User = require('../models/User');
+const { analyzeImage: analyzeImageUtil, predictCategory } = require('../utils/imageRecognition');
 const path = require('path');
 const fs = require('fs');
 
@@ -18,10 +19,12 @@ const submitWaste = async (req, res) => {
 
     const userId = req.session.userId;
     let imagePath = null;
+    let absoluteImagePath = null;
 
     // Handle file upload
     if (req.file) {
       imagePath = `/uploads/${req.file.filename}`;
+      absoluteImagePath = req.file.path;
     }
 
     // Get form data
@@ -35,9 +38,18 @@ const submitWaste = async (req, res) => {
       waste_description,
       latitude,
       longitude,
-      address_description,
-      barangay_id
+      address_description
     } = req.body;
+
+    // Fetch user profile to enforce auto-tagging
+    const currentUser = await User.findById(userId);
+    if (!currentUser || !currentUser.barangay_id) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Your account is not assigned to a barangay. Please update your profile first.'
+      });
+    }
+    const residentBarangayId = currentUser.barangay_id;
 
     // Parse waste_types if it's a string
     let wasteTypesArray = [];
@@ -72,12 +84,23 @@ const submitWaste = async (req, res) => {
       wasteAdjectivesArray = [waste_adjective];
     }
 
+    // If no predicted_category from the frontend, run server-side analysis
+    let serverPrediction = null;
+    if (!predicted_category && absoluteImagePath) {
+      try {
+        serverPrediction = await analyzeImageUtil(absoluteImagePath);
+        console.log('[WasteController] Server-side recognition:', serverPrediction);
+      } catch (err) {
+        console.error('[WasteController] Server analysis error:', err.message);
+      }
+    }
+
     // Create submission
     const submission = await WasteSubmission.create({
       user_id: userId,
       image_path: imagePath,
-      predicted_category: predicted_category || null,
-      confidence_score: confidence_score || null,
+      predicted_category: predicted_category || (serverPrediction ? serverPrediction.category : null),
+      confidence_score: confidence_score || (serverPrediction ? serverPrediction.confidence : null),
       confirmed_category: confirmed_category || null,
       waste_types: wasteTypesArray.length > 0 ? wasteTypesArray : null,
       waste_adjective: waste_adjective || null,
@@ -86,7 +109,7 @@ const submitWaste = async (req, res) => {
       latitude: latitude ? parseFloat(latitude) : null,
       longitude: longitude ? parseFloat(longitude) : null,
       address_description: address_description || null,
-      barangay_id: barangay_id ? parseInt(barangay_id) : null
+      barangay_id: residentBarangayId
     });
 
     res.status(201).json({
@@ -170,7 +193,7 @@ const getAllSubmissionsAdmin = async (req, res) => {
 
 /**
  * Analyze image and predict category
- * This endpoint can be used for server-side image analysis
+ * Uses real TensorFlow.js + MobileNet image analysis
  */
 const analyzeImage = async (req, res) => {
   try {
@@ -181,17 +204,23 @@ const analyzeImage = async (req, res) => {
       });
     }
 
-    // For now, return a basic prediction
-    // In production, you would use TensorFlow.js or a cloud API here
-    const prediction = predictCategory(['waste', 'trash']); // Placeholder
+    // Call real image analysis
+    const result = await analyzeImageUtil(req.file.path);
+
+    // Optionally clean up temp file for analyze-only endpoint
+    // (submissions keep the file, but analyze is just a preview)
+    try {
+      fs.unlinkSync(req.file.path);
+    } catch (e) { /* non-critical */ }
 
     res.json({
       status: 'success',
       data: {
-        predicted_category: prediction.category,
-        confidence: prediction.confidence,
-        adjective: prediction.adjective,
-        description: prediction.description
+        predicted_category: result.category,
+        confidence_score: result.confidence,
+        adjective: result.adjective,
+        description: result.description,
+        raw_labels: result.rawLabels || []
       }
     });
   } catch (error) {
@@ -209,11 +238,35 @@ const analyzeImage = async (req, res) => {
  */
 const getPendingSubmissions = async (req, res) => {
   try {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Authentication required'
+      });
+    }
+
+    if (req.session.role !== 'collector' && req.session.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Collector access required'
+      });
+    }
+
     const filters = {
       waste_types: req.query.waste_types ? (Array.isArray(req.query.waste_types) ? req.query.waste_types : [req.query.waste_types]) : null,
       waste_adjectives: req.query.waste_adjectives ? (Array.isArray(req.query.waste_adjectives) ? req.query.waste_adjectives : [req.query.waste_adjectives]) : null,
       barangay_id: req.query.barangay_id ? parseInt(req.query.barangay_id) : null
     };
+
+    if (req.session.role === 'collector') {
+      const User = require('../models/User');
+      const me = await User.findById(req.session.userId);
+      if (!me || !me.barangay_id) {
+        return res.json({ status: 'success', data: [], warning: 'No barangay assigned. Please contact admin.' });
+      }
+      // Force scope to collector's barangay
+      filters.barangay_id = me.barangay_id;
+    }
 
     const submissions = await WasteSubmission.findPending(filters);
 
@@ -419,10 +472,21 @@ const acceptSubmission = async (req, res) => {
     }
 
     if (existing.collection_status !== 'pending') {
-      return res.status(400).json({
+      return res.status(409).json({
         status: 'error',
-        message: 'Only pending submissions can be accepted'
+        message: 'This submission has already been accepted.'
       });
+    }
+
+    if (role === 'collector') {
+      const User = require('../models/User');
+      const me = await User.findById(req.session.userId);
+      if (!me || me.barangay_id !== existing.barangay_id) {
+        return res.status(403).json({
+          status: 'error',
+          message: 'You can only accept submissions from your assigned barangay'
+        });
+      }
     }
 
     // Atomically claim this pending submission for the current collector
@@ -484,6 +548,15 @@ const getAssignedSubmissions = async (req, res) => {
     }
 
     const collectorId = req.session.userId;
+
+    if (role === 'collector') {
+      const User = require('../models/User');
+      const me = await User.findById(collectorId);
+      if (!me || !me.barangay_id) {
+        return res.json({ status: 'success', data: [], warning: 'No barangay assigned. Please contact admin.' });
+      }
+    }
+
     const submissions = await WasteSubmission.findAssignedToCollector(collectorId);
 
     res.json({
@@ -542,9 +615,12 @@ const completeSubmission = async (req, res) => {
       });
     }
 
+    const { collector_notes } = req.body;
+
     const updated = await WasteSubmission.update(id, {
       collection_status: 'collected',
-      collected_at: new Date()
+      collected_at: new Date(),
+      ...(collector_notes && { collector_notes })
     });
 
     // Notify resident that their request was completed
@@ -572,6 +648,127 @@ const completeSubmission = async (req, res) => {
       error: error.message
     });
   }
+}
+
+/**
+ * Report a problem with an assigned submission
+ */
+const reportProblem = async (req, res) => {
+  try {
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ status: 'error', message: 'Authentication required' });
+    }
+
+    const role = req.session.role;
+    const { id } = req.params;
+    const { problem_type, problem_description } = req.body;
+
+    if (!problem_type) {
+      return res.status(400).json({ status: 'error', message: 'problem_type is required' });
+    }
+
+    const submission = await WasteSubmission.findById(id);
+
+    if (!submission) {
+      return res.status(404).json({ status: 'error', message: 'Submission not found' });
+    }
+
+    const isAssignedCollector = submission.collector_id === req.session.userId;
+    const isAdmin = role === 'admin';
+
+    if (!isAssignedCollector && !isAdmin) {
+      return res.status(403).json({ status: 'error', message: 'Not authorized to report issue for this submission' });
+    }
+
+    const updated = await WasteSubmission.update(id, {
+      has_problem: 1,
+      problem_type,
+      problem_description: problem_description || null
+    });
+
+    // Notify Admin
+    try {
+      await Notification.create({
+        user_id: 1, // Assumes Admin user_id is 1. If dynamic, look up first admin.
+        schedule_id: null,
+        notification_type: 'system',
+        message: `Collector reported a problem with submission #${id}: ${problem_type}`
+      });
+    } catch (e) {
+      console.error('Admin Notification block error:', e.message);
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Problem reported successfully',
+      data: updated
+    });
+
+  } catch (error) {
+    console.error('Report problem error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to report problem' });
+  }
+};
+
+/**
+ * Get collector historical completed tasks
+ */
+const getCollectorHistory = async (req, res) => {
+  try {
+    if (!req.session || !req.session.userId || (req.session.role !== 'collector' && req.session.role !== 'admin')) {
+      return res.status(403).json({ status: 'error', message: 'Collector access required' });
+    }
+
+    if (req.session.role === 'collector') {
+      const User = require('../models/User');
+      const me = await User.findById(req.session.userId);
+      if (!me || !me.barangay_id) {
+        return res.json({ status: 'success', data: [], warning: 'No barangay assigned. Please contact admin.' });
+      }
+    }
+
+    const history = await WasteSubmission.getCollectorHistory(req.session.userId);
+    res.json({ status: 'success', data: history });
+  } catch (error) {
+    console.error('Get history error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to get collector history' });
+  }
+};
+
+/**
+ * Get collector summary stats
+ */
+const getCollectorStats = async (req, res) => {
+  try {
+    if (!req.session || !req.session.userId || (req.session.role !== 'collector' && req.session.role !== 'admin')) {
+      return res.status(403).json({ status: 'error', message: 'Collector access required' });
+    }
+
+    let barangayId = null;
+    if (req.session.role === 'collector') {
+      const User = require('../models/User');
+      const me = await User.findById(req.session.userId);
+      if (!me || !me.barangay_id) {
+        return res.json({
+          status: 'success',
+          data: {
+            total_collected: 0,
+            total_weight_kg: 0,
+            today_collected: 0,
+            issues_reported: 0
+          },
+          warning: 'No barangay assigned. Please contact admin.'
+        });
+      }
+      barangayId = me.barangay_id;
+    }
+
+    const stats = await WasteSubmission.getCollectorStats(req.session.userId, barangayId);
+    res.json({ status: 'success', data: stats });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to get collector stats' });
+  }
 };
 
 module.exports = {
@@ -585,5 +782,8 @@ module.exports = {
   deleteSubmission,
   acceptSubmission,
   getAssignedSubmissions,
-  completeSubmission
+  completeSubmission,
+  reportProblem,
+  getCollectorHistory,
+  getCollectorStats
 };

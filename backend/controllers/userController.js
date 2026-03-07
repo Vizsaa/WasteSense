@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const db = require('../config/db.config');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -548,6 +549,17 @@ const resetUserPasswordAdmin = async (req, res) => {
 
     const updated = await User.setPassword(userId, String(new_password));
 
+    // Also resolve any pending password_reset_requests for this user (FR-AA-3.8)
+    try {
+      await db.query(
+        `UPDATE password_reset_requests SET status = 'completed', resolved_at = NOW() WHERE user_id = ? AND status IN ('pending', 'accepted')`,
+        [userId]
+      );
+    } catch (e) {
+      console.error('Failed to resolve password reset requests:', e.message);
+      // Non-fatal: password was already reset successfully
+    }
+
     res.json({
       status: 'success',
       message: 'Password reset successfully',
@@ -562,6 +574,55 @@ const resetUserPasswordAdmin = async (req, res) => {
   }
 };
 
+/**
+ * Admin: Assign a barangay specifically to a collector
+ */
+const assignCollectorBarangay = async (req, res) => {
+  try {
+    if (!req.session || req.session.role !== 'admin') {
+      return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const { barangay_id } = req.body;
+
+    const targetUserId = parseInt(id, 10);
+    if (Number.isNaN(targetUserId)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid user id' });
+    }
+
+    const parsedBarangay = barangay_id === null || barangay_id === '' ? null : parseInt(barangay_id, 10);
+    if (parsedBarangay !== null && Number.isNaN(parsedBarangay)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid barangay_id' });
+    }
+
+    // Verify user is a collector
+    const targetUser = await User.findByIdAdmin(targetUserId);
+    if (!targetUser || targetUser.role !== 'collector') {
+      return res.status(400).json({ status: 'error', message: 'Target user is not a collector' });
+    }
+
+    // Verify barangay exists and is active
+    if (parsedBarangay !== null) {
+      const [locRows] = await db.query('SELECT is_active FROM locations WHERE location_id = ?', [parsedBarangay]);
+      if (locRows.length === 0 || locRows[0].is_active === 0) {
+        return res.status(400).json({ status: 'error', message: 'Please select a valid active barangay' });
+      }
+    }
+
+    const updated = await User.updateAdminFull(targetUserId, { barangay_id: parsedBarangay });
+
+    res.json({
+      status: 'success',
+      message: 'Collector barangay assigned successfully',
+      data: updated
+    });
+  } catch (error) {
+    console.error('Assign collector barangay error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to assign barangay' });
+  }
+};
+
 module.exports = {
   updateProfile,
   updateProfileWithPicture,
@@ -569,5 +630,6 @@ module.exports = {
   getAllUsers,
   createUserAdmin,
   updateUserAdmin,
-  resetUserPasswordAdmin
+  resetUserPasswordAdmin,
+  assignCollectorBarangay
 };

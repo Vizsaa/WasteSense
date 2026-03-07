@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WasteSense - Collection History</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+
+<body class="bg-base">
+
+    <div class="container mt-4 mb-5 pb-5">
+
+        <div class="panel nm-flat custom-radius p-0 mb-5" style="overflow:hidden;">
+            <div class="p-4" style="border-bottom:1px solid rgba(255,255,255,0.05); background:rgba(0,0,0,0.2);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h2 class="m-0" style="font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                        <span style="color:var(--brand-emerald);">🕒</span> Past Collections
+                    </h2>
+                    <div class="text-muted" style="font-size:12px;">Most recent top</div>
+                </div>
+            </div>
+
+            <div class="p-4" style="overflow-x:auto;">
+                <table class="data-table" style="width:100%; min-width:600px;">
+                    <thead>
+                        <tr>
+                            <th>Date / Time</th>
+                            <th>Location</th>
+                            <th>Items</th>
+                            <th>Collection Note</th>
+                            <th>Issue Flag</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyContainer">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="emptyState" style="display:none; text-align:center; padding: 40px 20px;">
+                <div style="font-size:3rem; margin-bottom:10px; opacity:0.5;">📭</div>
+                <div style="font-size:14px; color:var(--text-muted);">No history found yet.</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/layout.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user || user.role !== 'collector') { window.location.href = 'login.html'; return; }
+            await loadHistory();
+        });
+
+        const getWasteEmoji = (category) => {
+            const map = { 'biodegradable': '🌱', 'recyclable': '♻️', 'non-biodegradable': '🗑️', 'hazardous': '⚠️', 'special': '🛋️', 'mixed': '📦' };
+            return map[category?.toLowerCase()] || '📦';
+        };
+
+        const parseTags = (str) => {
+            if (!str) return [];
+            try { return typeof str === 'string' ? JSON.parse(str) : str; } catch { return []; }
+        };
+
+        async function loadHistory() {
+            const hc = document.getElementById('historyContainer');
+            hc.innerHTML = `<tr><td colspan="5" class="text-center p-4">Loading history...</td></tr>`;
+
+            try {
+                const res = await apiFetch('/api/waste/collector/history');
+                const data = res.data || [];
+
+                if (data.length === 0) {
+                    hc.innerHTML = '';
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('emptyState').style.display = 'none';
+
+                hc.innerHTML = data.map(d => {
+                    const cat = d.confirmed_category || d.predicted_category || 'mixed';
+                    const emoji = getWasteEmoji(cat);
+                    const dt = new Date(d.collected_at).toLocaleString();
+                    const loc = escapeHtml(d.address_description || d.barangay_name || 'No address');
+                    const types = parseTags(d.waste_types).join(', ') || cat;
+                    const notes = escapeHtml(d.collector_notes || '—');
+
+                    let flagHtml = `<span class="badge" style="background:var(--bg-inset); color:var(--text-muted);">Clear</span>`;
+                    if (d.has_problem) {
+                        flagHtml = `<span class="badge" style="background:var(--status-denied); color:white;" title="${escapeHtml(d.problem_description || '')}">⚠️ ${escapeHtml(d.problem_type)}</span>`;
+                    }
+
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight:600; color:var(--text-primary); font-size:13px;">${dt.split(',')[0]}</div>
+                                <div style="font-size:11px; color:var(--text-muted);">${dt.split(',')[1]}</div>
+                            </td>
+                            <td><div style="font-weight:600; font-size:13px;">${loc}</div></td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span style="font-size:18px;">${emoji}</span>
+                                    <span style="font-size:12px;" class="text-secondary">${types}</span>
+                                </div>
+                            </td>
+                            <td style="font-size:12px; max-width:200px; white-space:normal; line-height:1.4; color:var(--text-secondary);">
+                                ${notes}
+                            </td>
+                            <td>${flagHtml}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (e) {
+                hc.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-danger">Failed to load history data.</td></tr>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

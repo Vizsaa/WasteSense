@@ -1,108 +1,297 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Performance - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        .info-box {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-            margin-top: 20px;
+        .metric-card {
+            background: var(--bg-inset);
+            border-radius: var(--radius-lg);
+            padding: var(--space-5);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .metric-success::before {
+            background: var(--brand-emerald);
+        }
+
+        .metric-warning::before {
+            background: var(--status-warning);
+        }
+
+        .metric-danger::before {
+            background: var(--status-error);
+        }
+
+        .metric-value {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: var(--space-2);
+            color: var(--text-primary);
+        }
+
+        /* History Table */
+        .admin-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 var(--space-2);
+            margin-top: var(--space-3);
+        }
+
+        .admin-table th {
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            padding: 0 var(--space-4) var(--space-2);
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .admin-table td {
+            background: var(--bg-inset);
+            padding: var(--space-3) var(--space-4);
+            font-size: var(--text-sm);
+            vertical-align: middle;
+        }
+
+        .admin-table tbody tr {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .admin-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-table td:first-child {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+        }
+
+        .admin-table td:last-child {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            text-align: right;
+        }
+
+        /* Panel Styling */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            background: var(--bg-raised);
+            z-index: 1050;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .side-panel.open {
+            right: 0;
+        }
+
+        .panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.6);
+            backdrop-filter: blur(3px);
+            z-index: 1040;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .panel-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .panel-header {
+            padding: var(--space-4) var(--space-5);
+            background: var(--bg-surface);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-body {
+            padding: var(--space-5);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .panel-footer {
+            padding: var(--space-4) var(--space-5);
+            background: var(--bg-surface);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-3);
         }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Performance Tracking</h1>
-            <p>Monitor completion of collection schedules</p>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5">
+            <div>
+                <a href="dashboard-admin.html" class="text-secondary text-sm mb-2"
+                    style="display:inline-block; text-decoration:none;">← Back to Dashboard</a>
+                <h1 style="margin:0; font-size:var(--text-2xl);">System Performance</h1>
+                <p class="text-secondary mt-1">Monitor collection schedule success rates and logistics issues.</p>
+            </div>
+            <button class="btn gradient-brand text-dark" style="background:var(--brand-lime);" onclick="openPanel()">
+                <span style="font-size:18px;">+</span> Log Disruption
+            </button>
         </div>
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
-                <li><a href="admin-performance.html">Performance</a></li>
-                <li><a href="admin-analytics.html">Analytics</a></li>
-            </ul>
-        </nav>
+        <!-- Metrics Grid -->
+        <div class="card-grid-3 mb-5">
+            <div class="nm-raised metric-card metric-success">
+                <div class="text-xs text-secondary text-uppercase fw-600">Perfect Execution</div>
+                <div class="metric-value" id="perfCompleted">-</div>
+                <div class="text-sm text-emerald mt-2">Routes completed on time</div>
+            </div>
 
-        <div class="content-section">
-            <h2>Overview</h2>
-            <div class="info-box">
-                <p style="margin-bottom: 10px;">High-level completion status for all logged schedule runs:</p>
-                <ul style="list-style: none; padding-left: 0; margin: 0;">
-                    <li><strong>Completed:</strong> <span id="perfCompleted">–</span></li>
-                    <li><strong>Missed:</strong> <span id="perfMissed">–</span></li>
-                    <li><strong>Delayed:</strong> <span id="perfDelayed">–</span></li>
-                </ul>
+            <div class="nm-raised metric-card metric-warning">
+                <div class="text-xs text-secondary text-uppercase fw-600">Delayed Routes</div>
+                <div class="metric-value" id="perfDelayed">-</div>
+                <div class="text-sm text-warning mt-2">Completed outside SLA</div>
+            </div>
+
+            <div class="nm-raised metric-card metric-danger">
+                <div class="text-xs text-secondary text-uppercase fw-600">Missed Collections</div>
+                <div class="metric-value" id="perfMissed">-</div>
+                <div class="text-sm text-error mt-2">Failed entirely</div>
             </div>
         </div>
 
-        <div class="content-section">
-            <h2>Log a Schedule Run</h2>
-            <p style="font-size: 13px; color: #6c757d;">Use this when a planned schedule was completed, missed, or delayed.</p>
-            <div id="alert-container"></div>
-            <form id="performanceForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="perfScheduleId">Schedule ID</label>
-                        <input type="number" id="perfScheduleId" required placeholder="e.g., 1">
+        <h2 style="font-size:var(--text-lg); margin-bottom:var(--space-3);">Recent Activity Log</h2>
+        <div style="overflow-x:auto;">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width:180px;">Date & Time</th>
+                        <th>Target Route / ID</th>
+                        <th>Resolution Status</th>
+                        <th>Administrator Notes</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr>
+                        <td colspan="4" class="text-center text-muted" style="padding:40px;">No manual override logs
+                            found for recent operations.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- Overlay & Side Panel for Logging Manual Overrides -->
+    <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+
+    <div class="side-panel" id="logPanel">
+        <div class="panel-header">
+            <h2 style="font-size:var(--text-xl); margin:0;">Log Route Outage</h2>
+            <button class="btn-cancel" onclick="closePanel()"
+                style="background:transparent; border:none; font-size:24px; color:var(--text-secondary); cursor:pointer;">×</button>
+        </div>
+
+        <div class="panel-body">
+            <div class="alert alert-warning mb-4"
+                style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.2); color:var(--status-warning);">
+                <strong style="display:block; margin-bottom:4px;">Override Tracking</strong>
+                Use this form to manually record anomalies in the automated routing schedule.
+            </div>
+
+            <form id="perfForm">
+                <div class="form-group mb-4">
+                    <label>Schedule Route Reference <span class="text-lime">*</span></label>
+                    <select id="perfSchedId" required>
+                        <option value="">Loading Schedules...</option>
+                    </select>
+                    <div class="text-muted text-xs mt-1">Select the active rule that failed.</div>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label>Incident Status <span class="text-lime">*</span></label>
+                    <select id="perfStatus" required>
+                        <option value="missed">Route Missed Completely (Critical)</option>
+                        <option value="delayed">Route Delayed (Warning)</option>
+                        <option value="completed">Manual Completion (Resolved)</option>
+                    </select>
+                </div>
+
+                <div class="d-flex gap-3 mb-4">
+                    <div class="form-group" style="flex:1;">
+                        <label>Expected Date <span class="text-lime">*</span></label>
+                        <input type="date" id="perfPlannedDate" required style="color-scheme:dark;">
                     </div>
-                    <div class="form-group">
-                        <label for="perfStatus">Status</label>
-                        <select id="perfStatus" required>
-                            <option value="completed">Completed</option>
-                            <option value="missed">Missed</option>
-                            <option value="delayed">Delayed</option>
-                        </select>
+
+                    <div class="form-group" style="flex:1;">
+                        <label>Resolved Date</label>
+                        <input type="date" id="perfActualDate" style="color-scheme:dark;">
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="perfPlannedDate">Planned Date</label>
-                        <input type="date" id="perfPlannedDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="perfActualDate">Actual Date (optional)</label>
-                        <input type="date" id="perfActualDate">
-                    </div>
+
+                <div class="form-group mb-5">
+                    <label>Incident Post-Mortem / Notes</label>
+                    <textarea id="perfNotes" rows="4"
+                        placeholder="e.g. Truck breakdown on route 4, redirected unit 2..."></textarea>
                 </div>
-                <div class="form-group">
-                    <label for="perfNotes">Notes (optional)</label>
-                    <textarea id="perfNotes" rows="2" placeholder="Any remarks about this run"></textarea>
-                </div>
-                <button type="submit" class="btn">Save Performance Entry</button>
             </form>
+        </div>
+
+        <div class="panel-footer">
+            <button class="btn btn-ghost" onclick="closePanel()">Cancel</button>
+            <button class="btn gradient-brand text-dark" id="saveLogBtn" onclick="saveLog()">Record Outage</button>
         </div>
     </div>
 
+
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
+        let allSchedules = [];
+
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
 
-            if (user.role !== 'admin') {
-                alert('Access denied. Admin only.');
-                window.location.href = '/pages/dashboard-resident.html';
-                return;
-            }
-
-            await loadPerformanceSummary();
-
-            document.getElementById('performanceForm').addEventListener('submit', handlePerfSubmit);
+            await Promise.all([loadPerformanceSummary(), loadSchedules()]);
         });
 
         async function loadPerformanceSummary() {
+            const hBody = document.getElementById('historyBody');
+            showSkeletonList(hBody, 4, 'table', 4);
             try {
                 const response = await fetch('/api/performance/summary', { credentials: 'include' });
                 const data = await response.json();
@@ -110,72 +299,92 @@
 
                 const summary = data.data || [];
                 const lookup = { completed: 0, missed: 0, delayed: 0 };
-                summary.forEach(row => {
-                    if (lookup[row.status] !== undefined) {
-                        lookup[row.status] = row.count;
-                    }
-                });
+                summary.forEach(row => { if (lookup[row.status] !== undefined) lookup[row.status] = row.count; });
 
                 document.getElementById('perfCompleted').textContent = lookup.completed;
                 document.getElementById('perfMissed').textContent = lookup.missed;
                 document.getElementById('perfDelayed').textContent = lookup.delayed;
-            } catch (error) {
-                console.error('Performance summary error:', error);
-                document.getElementById('perfCompleted').textContent = '–';
-                document.getElementById('perfMissed').textContent = '–';
-                document.getElementById('perfDelayed').textContent = '–';
+
+                // Clear skeleton for history and show empty since we don't have log history endpoint fully integrated yet in this view
+                hBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:40px;">No manual override logs found for recent operations.</td></tr>`;
+            } catch (e) {
+                document.getElementById('perfCompleted').textContent = '—';
+                document.getElementById('perfMissed').textContent = '—';
+                document.getElementById('perfDelayed').textContent = '—';
+                hBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:40px;">Failed to load logs.</td></tr>`;
             }
         }
 
-        async function handlePerfSubmit(e) {
-            e.preventDefault();
-            const schedule_id = document.getElementById('perfScheduleId').value;
-            const status = document.getElementById('perfStatus').value;
-            const planned_date = document.getElementById('perfPlannedDate').value;
-            const actual_date = document.getElementById('perfActualDate').value;
-            const notes = document.getElementById('perfNotes').value.trim();
+        async function loadSchedules() {
+            try {
+                const res = await apiFetch('/api/schedules');
+                allSchedules = res.data || [];
 
-            if (!schedule_id || !planned_date || !status) {
-                showAlert('Please fill in required fields.', 'error');
-                return;
-            }
+                const sel = document.getElementById('perfSchedId');
+                sel.innerHTML = '<option value="">Select Target Schedule...</option>';
+                allSchedules.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.schedule_id;
+                    opt.textContent = `ID #${s.schedule_id} — ${s.barangay_name || 'Unknown'} (${s.collection_day} ${s.collection_time})`;
+                    sel.appendChild(opt);
+                });
+            } catch (e) { }
+        }
+
+
+        /* --- Panel Logic --- */
+        window.openPanel = function () {
+            document.getElementById('perfForm').reset();
+            // Pre-fill planned date to today
+            document.getElementById('perfPlannedDate').value = new Date().toISOString().split('T')[0];
+
+            document.getElementById('panelOverlay').classList.add('open');
+            document.getElementById('logPanel').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('perfSchedId').focus(), 100);
+        };
+
+        window.closePanel = function () {
+            document.getElementById('panelOverlay').classList.remove('open');
+            document.getElementById('logPanel').classList.remove('open');
+            document.body.style.overflow = '';
+        };
+
+        window.saveLog = async function (e) {
+            if (e) e.preventDefault();
+            const form = document.getElementById('perfForm');
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+
+            const btn = document.getElementById('saveLogBtn');
+            btn.disabled = true; btn.textContent = 'Recording...';
+
+            const payload = {
+                schedule_id: Number(document.getElementById('perfSchedId').value),
+                status: document.getElementById('perfStatus').value,
+                planned_date: document.getElementById('perfPlannedDate').value,
+                actual_date: document.getElementById('perfActualDate').value || null,
+                notes: document.getElementById('perfNotes').value.trim() || null
+            };
 
             try {
-                const response = await fetch('/api/performance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        schedule_id: Number(schedule_id),
-                        planned_date,
-                        actual_date: actual_date || null,
-                        status,
-                        notes: notes || null
-                    })
-                });
-                const data = await response.json();
-                if (response.ok && data.status === 'success') {
-                    showAlert('Performance entry saved.', 'success');
-                    e.target.reset();
+                const res = await apiFetch('/api/performance', { method: 'POST', body: JSON.stringify(payload) });
+                if (res.status === 'success') {
+                    showToast('Anomaly logged successfully', 'success');
+                    closePanel();
                     await loadPerformanceSummary();
-                } else {
-                    showAlert(data.message || 'Failed to save performance entry.', 'error');
+                    // Optional: refresh table data if we were pulling the history array (currently endpoint missing or unstructured)
+                    // The original implementation only updated the summary cards.
                 }
-            } catch (error) {
-                console.error(error);
-                showAlert('An error occurred while saving performance entry.', 'error');
+            } catch (err) { } finally {
+                btn.disabled = false; btn.textContent = 'Record Outage';
             }
-        }
+        };
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            if (!alertContainer) return;
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
-        }
+        document.getElementById('perfForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveLog();
+        });
     </script>
 </body>
-</html>
 
+</html>

@@ -1,484 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <style>
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .stat-card {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-        }
-        .stat-label {
-            font-size: 14px;
-            color: #6c757d;
-            margin-bottom: 4px;
-        }
-        .stat-value {
-            font-size: 26px;
-            font-weight: 700;
-            color: #212529;
-        }
-        .stat-sub {
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 6px;
-        }
-        .locations-table {
+        /* Analytics Specific Styles */
+        .chart-container {
+            position: relative;
+            height: 300px;
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        .locations-table th,
-        .locations-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        .locations-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-        }
-        .locations-table tr:hover {
-            background: #f8f9fa;
-        }
-        .table-small th,
-        .table-small td {
-            font-size: 14px;
-            padding: 8px;
+            background: var(--bg-inset);
+            border-radius: var(--radius-md);
+            padding: var(--space-4);
         }
 
         #heatmapMap {
             width: 100%;
-            height: 420px;
-            border-radius: 12px;
+            height: 400px;
+            border-radius: var(--radius-lg);
             overflow: hidden;
-            border: 1px solid #e9ecef;
+            background: var(--bg-inset);
+            z-index: 1;
         }
 
-        .chart-bar {
-            height: 10px;
-            background: #667eea;
-            border-radius: 999px;
+        /* Custom leaflet styles for dark map */
+        .leaflet-container {
+            background: #1a1a1a;
+        }
+
+        .filter-select {
+            background: var(--bg-inset);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: var(--radius-pill);
+            outline: none;
+            font-size: var(--text-sm);
+        }
+
+        .stat-card.lime {
+            border-top: 3px solid var(--brand-lime);
         }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Analytics & Overview</h1>
-            <p>High-level view of submissions and pending collections</p>
-        </div>
+<body class="stagger-1">
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
-                <li><a href="admin-analytics.html">Analytics</a></li>
-                <li><a href="admin-performance.html">Performance</a></li>
-            </ul>
-        </nav>
-
-        <div class="content-section">
-            <h2>Key Metrics</h2>
-            <div id="alert-container"></div>
-            <div class="cards-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Pending Submissions</div>
-                    <div class="stat-value" id="pendingCount">-</div>
-                    <div class="stat-sub">Requests waiting for pickup</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Assigned to Collectors</div>
-                    <div class="stat-value" id="assignedCount">-</div>
-                    <div class="stat-sub">Scheduled for collection</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Known Users</div>
-                    <div class="stat-value" id="userCount">-</div>
-                    <div class="stat-sub">Total registered accounts</div>
-                </div>
+    <div class="main-content">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5">
+            <div>
+                <a href="dashboard-admin.html" class="text-secondary text-sm mb-2"
+                    style="display:inline-block; text-decoration:none;">← Back to Dashboard</a>
+                <h1 style="margin:0; font-size:var(--text-2xl);">Analytics & Intel</h1>
+                <p class="text-secondary mt-1">Data-driven insights on collection performance and waste density.</p>
             </div>
         </div>
 
-        <div class="content-section">
-            <h2>Waste Mix (Pending + Assigned)</h2>
-            <p style="font-size: 13px; color: #6c757d;">This gives a quick sense of what types of waste are currently in the queue.</p>
-            <table class="locations-table table-small">
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th>Approximate Count</th>
-                    </tr>
-                </thead>
-                <tbody id="categoryBreakdownBody">
-                    <tr>
-                        <td colspan="2" style="text-align: center;">Loading...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Top Metrics Cards -->
+        <div class="card-grid-3 mb-5">
+            <div class="nm-raised stat-card lime custom-radius" style="padding:var(--space-4);">
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase;">Pending Pickups</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--text-primary);" id="pendingCount">-</div>
+            </div>
+
+            <div class="nm-raised stat-card custom-radius" style="padding:var(--space-4);">
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase;">Active Routes</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--brand-emerald);" id="assignedCount">-</div>
+            </div>
+
+            <div class="nm-raised stat-card custom-radius" style="padding:var(--space-4);">
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase;">Platform Users</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--brand-blue);" id="userCount">-</div>
+            </div>
         </div>
 
-        <div class="content-section">
-            <h2>Recent Pending Submissions</h2>
-            <table class="locations-table table-small">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Status</th>
-                        <th>Created</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody id="pendingTableBody">
-                    <tr>
-                        <td colspan="4" style="text-align: center;">Loading...</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Charts Row -->
+        <div
+            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr)); gap:var(--space-5); margin-bottom:var(--space-6);">
+
+            <!-- Waste Mix Donut Chart -->
+            <div>
+                <h2 style="font-size:var(--text-lg); margin-bottom:var(--space-3);">Waste Composition</h2>
+                <div class="chart-container custom-radius">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Daily Trend Line Chart -->
+            <div>
+                <h2 style="font-size:var(--text-lg); margin-bottom:var(--space-3);">Submission Volume (30D)</h2>
+                <div class="chart-container custom-radius">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
         </div>
 
-        <div class="content-section">
-            <h2>Heat Map (Submissions)</h2>
-            <p style="font-size: 13px; color: #6c757d; margin-bottom: 10px;">
-                Visualizes submission density based on stored latitude/longitude. This is a static view (no real-time tracking).
-            </p>
-            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom: 12px;">
-                <div class="form-group" style="min-width: 220px; margin:0;">
-                    <label for="heatmapDays">Range</label>
-                    <select id="heatmapDays">
-                        <option value="7">Last 7 days</option>
-                        <option value="30" selected>Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                        <option value="365">Last 365 days</option>
+        <!-- Heatmap Section -->
+        <div class="mb-5">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h2 style="font-size:var(--text-lg); margin:0;">Density Heatmap</h2>
+                <div class="d-flex gap-2">
+                    <select id="heatmapDays" class="filter-select">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
                     </select>
+                    <button class="btn btn-ghost" id="reloadHeatmapBtn" style="padding:8px; font-size:16px;">🔄</button>
                 </div>
-                <button class="btn btn-small" id="reloadHeatmapBtn" type="button">Reload</button>
-                <div style="font-size: 12px; color:#6c757d;">Showing up to 5000 points.</div>
             </div>
-            <div id="heatmapMap"></div>
-            <div id="heatmapMeta" style="font-size: 12px; color:#6c757d; margin-top: 8px;"></div>
+
+            <div class="nm-raised custom-radius" style="padding:var(--space-2);">
+                <div id="heatmapMap"></div>
+            </div>
+            <div id="heatmapMeta" class="text-muted mt-2 text-center" style="font-size:var(--text-xs);">Loading heat map
+                data...</div>
         </div>
 
-        <div class="content-section">
-            <h2>Temporal Patterns</h2>
-            <p style="font-size: 13px; color: #6c757d; margin-bottom: 10px;">
-                Submissions over time (daily) and by hour of day.
-            </p>
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
-                <div>
-                    <h3 style="margin-top:0;">Daily</h3>
-                    <table class="locations-table table-small">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Count</th>
-                                <th style="width: 55%;">Trend</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailyTemporalBody">
-                            <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div>
-                    <h3 style="margin-top:0;">Hourly</h3>
-                    <table class="locations-table table-small">
-                        <thead>
-                            <tr>
-                                <th>Hour</th>
-                                <th>Count</th>
-                                <th style="width: 55%;">Trend</th>
-                            </tr>
-                        </thead>
-                        <tbody id="hourlyTemporalBody">
-                            <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="../js/layout.js"></script>
+
+    <!-- Dependencies for Heatmap & Charts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
-        window.addEventListener('DOMContentLoaded', async () => {
+        // Chart overrides for light theme
+        Chart.defaults.color = '#3D6B3D'; // --text-secondary
+        Chart.defaults.font.family = "'Plus Jakarta Sans', system-ui, sans-serif";
+
+        // Brand color mapping
+        const colorMap = {
+            'biodegradable': '#10B981', // Emerald
+            'recyclable': '#3B82F6',    // Blue
+            'non-biodegradable': '#F59E0B', // Amber
+            'special': '#8B5CF6',       // Purple
+            'hazardous': '#EF4444',     // Red
+            'mixed': '#6B7280'          // Gray
+        };
+
+        let categoryChartInst = null;
+        let trendChartInst = null;
+        let heatmapMap = null;
+        let heatLayer = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
 
-            if (user.role !== 'admin') {
-                alert('Access denied. Admin only.');
-                window.location.href = '/pages/dashboard-resident.html';
-                return;
-            }
-
-            const [pending, assigned] = await Promise.all([
-                loadPendingSubmissions(),
-                loadAssignedCount(),
-                loadUserCount()
-            ]);
-
-            // Build simple category breakdown from pending + assigned submissions
-            buildCategoryBreakdown(pending, assigned);
-
-            setupHeatmap();
+            // Kick off data fetches
+            loadTopMetrics();
+            initChartsAndMap();
         });
 
-        let heatmapMap;
-        let heatLayer;
-
-        function setupHeatmap() {
-            const mapEl = document.getElementById('heatmapMap');
-            if (!mapEl) return;
-
-            heatmapMap = L.map('heatmapMap', { scrollWheelZoom: false }).setView([14.5995, 120.9842], 11);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(heatmapMap);
-
-            heatLayer = L.heatLayer([], { radius: 25, blur: 18, maxZoom: 17 }).addTo(heatmapMap);
-
-            const btn = document.getElementById('reloadHeatmapBtn');
-            const sel = document.getElementById('heatmapDays');
-            if (btn) btn.addEventListener('click', loadHeatmapAndTemporal);
-            if (sel) sel.addEventListener('change', loadHeatmapAndTemporal);
-
-            loadHeatmapAndTemporal();
-        }
-
-        async function loadHeatmapAndTemporal() {
-            const days = document.getElementById('heatmapDays')?.value || '30';
-            const meta = document.getElementById('heatmapMeta');
+        async function loadTopMetrics() {
+            // Apply lightweight skeleton
+            document.getElementById('pendingCount').innerHTML = '<div class="skeleton" style="height:40px; width:60px; border-radius:4px; margin-top:8px;"></div>';
+            document.getElementById('assignedCount').innerHTML = '<div class="skeleton" style="height:40px; width:60px; border-radius:4px; margin-top:8px;"></div>';
+            document.getElementById('userCount').innerHTML = '<div class="skeleton" style="height:40px; width:60px; border-radius:4px; margin-top:8px;"></div>';
 
             try {
-                if (meta) meta.textContent = 'Loading heat map data...';
+                const [pend, assg, usr] = await Promise.all([
+                    apiFetch('/api/waste/pending'),
+                    apiFetch('/api/waste/assigned'),
+                    apiFetch('/api/users')
+                ]);
+                document.getElementById('pendingCount').textContent = (pend.data || []).length;
+                document.getElementById('assignedCount').textContent = (assg.data || []).length;
+                document.getElementById('userCount').textContent = (usr.data || []).length;
 
-                const resp = await fetch(`/api/analytics/heatmap?days=${encodeURIComponent(days)}`, { credentials: 'include' });
-                const data = await resp.json();
-                if (!resp.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load analytics');
-                }
-
-                const points = data.data?.points || [];
-                const temporal = data.data?.temporal || { daily: [], hourly: [] };
-
-                // Heat layer points: [lat,lng,weight]
-                const heatPoints = points.map(p => [p.lat, p.lng, p.weight || 1]);
-                heatLayer.setLatLngs(heatPoints);
-
-                // Fit bounds if we have points
-                if (points.length > 0) {
-                    const bounds = L.latLngBounds(points.map(p => [p.lat, p.lng]));
-                    heatmapMap.fitBounds(bounds.pad(0.2));
-                }
-
-                if (meta) {
-                    const withCoords = points.length;
-                    meta.textContent = withCoords === 0
-                        ? 'No submissions with coordinates found for the selected range.'
-                        : `Loaded ${withCoords} geocoded submissions from the last ${data.data.range_days} days.`;
-                }
-
-                renderTemporalTable('dailyTemporalBody', temporal.daily || [], (row) => String(row.day || ''));
-                renderTemporalTable('hourlyTemporalBody', temporal.hourly || [], (row) => {
-                    const hr = row.hour;
-                    return (hr === 0 || hr) ? `${String(hr).padStart(2, '0')}:00` : '';
-                });
-            } catch (err) {
-                console.error(err);
-                if (meta) meta.textContent = 'Error loading heat map data.';
-                const dailyBody = document.getElementById('dailyTemporalBody');
-                const hourlyBody = document.getElementById('hourlyTemporalBody');
-                if (dailyBody) dailyBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Error loading data.</td></tr>';
-                if (hourlyBody) hourlyBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Error loading data.</td></tr>';
-            }
-        }
-
-        function renderTemporalTable(tbodyId, rows, labelFn) {
-            const tbody = document.getElementById(tbodyId);
-            if (!tbody) return;
-
-            if (!rows || rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No data.</td></tr>';
-                return;
-            }
-
-            const max = Math.max(...rows.map(r => Number(r.count) || 0), 1);
-
-            tbody.innerHTML = rows.map(r => {
-                const count = Number(r.count) || 0;
-                const pct = Math.round((count / max) * 100);
-                const label = labelFn(r);
-                return `
-                    <tr>
-                        <td>${escapeHtml(label)}</td>
-                        <td>${count}</td>
-                        <td><div class="chart-bar" style="width:${pct}%;"></div></td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        async function loadPendingSubmissions() {
-            try {
-                const response = await fetch('/api/waste/pending', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load pending submissions');
-                }
-
-                const submissions = data.data || [];
-                document.getElementById('pendingCount').textContent = submissions.length;
-
-                const tbody = document.getElementById('pendingTableBody');
-                if (submissions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No pending submissions.</td></tr>';
-                    return;
-                }
-
-                const rows = submissions.slice(0, 10).map(s => `
-                    <tr>
-                        <td>${s.submission_id}</td>
-                        <td>${s.collection_status}</td>
-                        <td>${s.created_at ? new Date(s.created_at).toLocaleString() : ''}</td>
-                        <td>${s.waste_description || '-'}</td>
-                    </tr>
-                `).join('');
-                tbody.innerHTML = rows;
-                return submissions;
-            } catch (error) {
-                console.error(error);
-                showAlert('Error loading pending submissions.', 'error');
-                document.getElementById('pendingTableBody').innerHTML =
-                    '<tr><td colspan="4" style="text-align: center;">Error loading data.</td></tr>';
-                return [];
-            }
-        }
-
-        async function loadAssignedCount() {
-            try {
-                const response = await fetch('/api/waste/assigned', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load assigned submissions');
-                }
-                const submissions = data.data || [];
-                document.getElementById('assignedCount').textContent = submissions.length;
-                return submissions;
-            } catch (error) {
-                console.error(error);
+                // Use pend & assg to render donut
+                renderCategoryDonut([...(pend.data || []), ...(assg.data || [])]);
+            } catch (e) {
+                console.warn('Metrics failed', e);
+                document.getElementById('pendingCount').textContent = '-';
                 document.getElementById('assignedCount').textContent = '-';
-                return [];
-            }
-        }
-
-        async function loadUserCount() {
-            try {
-                const response = await fetch('/api/users', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load users');
-                }
-                const users = data.data || [];
-                document.getElementById('userCount').textContent = users.length;
-            } catch (error) {
-                console.error(error);
                 document.getElementById('userCount').textContent = '-';
             }
         }
 
-        function buildCategoryBreakdown(pendingSubmissions, assignedSubmissions) {
-            const all = [...pendingSubmissions, ...assignedSubmissions];
-            const counts = {
-                biodegradable: 0,
-                'non-biodegradable': 0,
-                recyclable: 0,
-                special: 0,
-                hazardous: 0,
-                mixed: 0
-            };
+        function renderCategoryDonut(allSubs) {
+            const counts = { biodegradable: 0, recyclable: 0, 'non-biodegradable': 0, special: 0, hazardous: 0, mixed: 0 };
 
-            all.forEach(s => {
+            allSubs.forEach(s => {
                 let types = [];
-                if (s.waste_types) {
-                    if (Array.isArray(s.waste_types)) {
-                        types = s.waste_types;
-                    } else if (typeof s.waste_types === 'string') {
-                        try {
-                            types = JSON.parse(s.waste_types);
-                        } catch {
-                            types = s.waste_types.split(',').map(t => t.trim()).filter(Boolean);
-                        }
-                    }
-                } else if (s.confirmed_category || s.predicted_category) {
-                    types = [s.confirmed_category || s.predicted_category];
-                }
+                try { types = JSON.parse(s.waste_types || '[]'); } catch { types = [s.confirmed_category || 'mixed'] }
+                if (types.length === 0) types = ['mixed'];
 
-                if (types.length === 0) {
-                    counts.mixed++;
-                } else {
-                    types.forEach(t => {
-                        const key = t.toLowerCase();
-                        if (counts[key] !== undefined) {
-                            counts[key]++;
-                        } else {
-                            counts.mixed++;
-                        }
-                    });
-                }
+                types.forEach(t => {
+                    const clean = t.toLowerCase().trim();
+                    if (counts[clean] !== undefined) counts[clean]++;
+                    else counts.mixed++;
+                });
             });
 
-            const tbody = document.getElementById('categoryBreakdownBody');
-            const total = Object.values(counts).reduce((a, b) => a + b, 0);
-            if (total === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" style="text-align: center;">No active submissions to analyze.</td></tr>';
-                return;
+            const labels = Object.keys(counts).filter(k => counts[k] > 0);
+            const dataVals = labels.map(k => counts[k]);
+            const bgColors = labels.map(k => colorMap[k]);
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (categoryChartInst) categoryChartInst.destroy();
+
+            categoryChartInst = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    datasets: [{ data: dataVals, backgroundColor: bgColors, borderWidth: 0, hoverOffset: 4 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function initChartsAndMap() {
+            // Leaflet map setup (Dark theme via CartoDB DarkMatter equivalent tiles)
+            heatmapMap = L.map('heatmapMap', { scrollWheelZoom: false }).setView([14.5995, 120.9842], 12);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }).addTo(heatmapMap);
+
+            heatLayer = L.heatLayer([], { radius: 25, blur: 20, maxZoom: 15, gradient: { 0.4: 'blue', 0.6: 'lime', 1: 'red' } }).addTo(heatmapMap);
+
+            document.getElementById('heatmapDays').addEventListener('change', loadHeatmapData);
+            document.getElementById('reloadHeatmapBtn').addEventListener('click', loadHeatmapData);
+
+            loadHeatmapData();
+        }
+
+        async function loadHeatmapData() {
+            const days = document.getElementById('heatmapDays').value;
+            document.getElementById('heatmapMeta').textContent = 'Fetching spatial data...';
+
+            try {
+                const res = await apiFetch(`/api/analytics/heatmap?days=${days}`);
+                const data = res.data;
+
+                // Update map
+                const heatPoints = (data.points || []).map(p => [p.lat, p.lng, p.weight || 1]);
+                heatLayer.setLatLngs(heatPoints);
+                if (heatPoints.length > 0) {
+                    heatmapMap.fitBounds(L.latLngBounds(heatPoints), { padding: [50, 50], maxZoom: 14 });
+                }
+
+                document.getElementById('heatmapMeta').textContent = `Showing ${heatPoints.length} geocoded requests.`;
+
+                // Update Trend Line chart
+                renderTrendChart(data.temporal?.daily || []);
+
+            } catch (e) {
+                document.getElementById('heatmapMeta').textContent = 'Failed to load heatmap data.';
+            }
+        }
+
+        function renderTrendChart(dailyData) {
+            // dailyData is [{day:'2023-10-01', count:5}, ...] format from API
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            if (trendChartInst) trendChartInst.destroy();
+
+            // Reverse to show oldest -> newest left-to-right if API provides newest first, or just map directly
+            // Ensure sorted by date
+            const sorted = [...dailyData].sort((a, b) => new Date(a.day) - new Date(b.day));
+
+            let labels = sorted.map(d => {
+                const parts = d.day.split('-');
+                return `${parts[1]}/${parts[2]}`; // MM/DD
+            });
+            let vals = sorted.map(d => parseInt(d.count));
+
+            // If empty, mock UI
+            if (labels.length === 0) {
+                labels = ['No Data']; vals = [0];
             }
 
-            tbody.innerHTML = Object.entries(counts)
-                .filter(([, value]) => value > 0)
-                .map(([category, value]) => `
-                    <tr>
-                        <td>${category.charAt(0).toUpperCase() + category.slice(1)}</td>
-                        <td>${value}</td>
-                    </tr>
-                `)
-                .join('');
-        }
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(110, 224, 0, 0.4)'); // brand-lime transparent
+            gradient.addColorStop(1, 'rgba(110, 224, 0, 0.0)');
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
-        }
-
-        function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            trendChartInst = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Requests',
+                        data: vals,
+                        borderColor: '#6EE000',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#121212',
+                        pointBorderColor: '#6EE000',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(46,125,50,0.1)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
         }
     </script>
 </body>
-</html>
 
+</html>

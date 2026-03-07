@@ -14,6 +14,7 @@ router.get('/upcoming', scheduleController.getUpcomingSchedules);
 router.get('/', scheduleController.getSchedulesByUser);
 
 // Admin only routes
+router.get('/all', requireAdmin, scheduleController.getAllSchedules);
 router.post('/', requireAdmin, scheduleController.createSchedule);
 router.put('/:id', requireAdmin, scheduleController.updateSchedule);
 router.delete('/:id', requireAdmin, scheduleController.deleteSchedule);

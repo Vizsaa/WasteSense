@@ -1,253 +1,400 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Locations - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        .locations-table {
+        .admin-table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+            border-collapse: separate;
+            border-spacing: 0 var(--space-2);
+            margin-top: var(--space-3);
         }
-        .locations-table th,
-        .locations-table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        .locations-table th {
-            background: #f8f9fa;
+
+        .admin-table th {
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
             font-weight: 600;
+            padding: 0 var(--space-4) var(--space-2);
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .locations-table tr:hover {
-            background: #f8f9fa;
+
+        .admin-table td {
+            background: var(--bg-inset);
+            padding: var(--space-3) var(--space-4);
+            font-size: var(--text-sm);
         }
-        .btn-small {
-            padding: 5px 15px;
-            font-size: 14px;
-            margin: 0 5px;
+
+        .admin-table tbody tr {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
         }
-        .btn-danger {
-            background: #dc3545;
+
+        .admin-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
-        .btn-danger:hover {
-            background: #c82333;
+
+        .admin-table td:first-child {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
         }
-        .add-location-form {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
+
+        .admin-table td:last-child {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            text-align: right;
         }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
+
+        /* Side Panel Styling */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            background: var(--bg-raised);
+            z-index: 1050;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
         }
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
+
+        .side-panel.open {
+            right: 0;
+        }
+
+        .panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.6);
+            backdrop-filter: blur(3px);
+            z-index: 1040;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .panel-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .panel-header {
+            padding: var(--space-4) var(--space-5);
+            background: var(--bg-surface);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-body {
+            padding: var(--space-5);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .panel-footer {
+            padding: var(--space-4) var(--space-5);
+            background: var(--bg-surface);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-3);
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: var(--space-3);
+            background: var(--bg-inset);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-4);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .badge-delete {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--status-error);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .badge-delete:hover {
+            background: var(--status-error);
+            color: white;
         }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
-    
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Manage Barangays/Locations</h1>
-            <p>Add and manage barangays/villages for waste collection</p>
+
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5">
+            <div>
+                <a href="dashboard-admin.html" class="text-secondary text-sm mb-2"
+                    style="display:inline-block; text-decoration:none;">← Back to Dashboard</a>
+                <h1 style="margin:0; font-size:var(--text-2xl);">Directory: Locations</h1>
+                <p class="text-secondary mt-1">Manage active barangays and operational zones.</p>
+            </div>
+            <button class="btn gradient-brand text-dark" style="background:var(--brand-lime);"
+                onclick="openPanel('create')">
+                <span style="font-size:18px;">+</span> Add Location
+            </button>
         </div>
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
-                <li><a href="admin-locations.html">Locations</a></li>
-            </ul>
-        </nav>
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="input-group" style="flex: 1; min-width: 250px;">
+                <input type="text" id="searchLocation" placeholder="Search highly specific locations..."
+                    class="input-light">
+            </div>
 
-        <div class="content-section">
-            <h2>Add New Barangay</h2>
-            <form id="addLocationForm" class="add-location-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="barangayName">Barangay Name *</label>
-                        <input type="text" id="barangayName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="municipality">Municipality *</label>
-                        <input type="text" id="municipality" required>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="province">Province *</label>
-                        <input type="text" id="province" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="zoneOrStreet">Zone/Street (Optional)</label>
-                        <input type="text" id="zoneOrStreet">
-                    </div>
-                </div>
-                <button type="submit" class="btn">Add Barangay</button>
-            </form>
+            <div class="text-muted text-sm d-flex align-items-center gap-2">
+                <span id="locCount">0</span> Total Regions Built
+            </div>
         </div>
 
-        <div class="content-section">
-            <h2>Existing Barangays</h2>
-            <div id="alert-container"></div>
-            <table class="locations-table">
+        <!-- Desktop Table -->
+        <div style="overflow-x:auto;">
+            <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Barangay Name</th>
+                        <th style="width:250px;">Barangay</th>
                         <th>Municipality</th>
                         <th>Province</th>
-                        <th>Zone/Street</th>
-                        <th>Actions</th>
+                        <th>Zone/Street Details</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="locationsTableBody">
-                    <tr>
-                        <td colspan="5" style="text-align: center;">Loading...</td>
-                    </tr>
+                    <!-- Injected via JS -->
                 </tbody>
             </table>
         </div>
     </div>
 
+    <!-- Overlay & Side Panel -->
+    <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+
+    <div class="side-panel" id="locPanel">
+        <div class="panel-header">
+            <h2 id="panelTitle" style="font-size:var(--text-xl); margin:0;">Add Location</h2>
+            <button class="btn-cancel" onclick="closePanel()"
+                style="background:transparent; border:none; font-size:24px; color:var(--text-secondary); cursor:pointer;">×</button>
+        </div>
+
+        <div class="panel-body">
+            <form id="locForm">
+                <input type="hidden" id="editLocId">
+                <input type="submit" hidden /> <!-- allow enter to submit -->
+
+                <div class="form-group">
+                    <label>Barangay Name <span class="text-lime">*</span></label>
+                    <input type="text" id="locBarangay" required placeholder="e.g. San Lorenzo">
+                </div>
+
+                <div class="form-group">
+                    <label>Municipality / City <span class="text-lime">*</span></label>
+                    <input type="text" id="locMuni" required placeholder="e.g. Makati Code">
+                </div>
+
+                <div class="form-group">
+                    <label>Province <span class="text-lime">*</span></label>
+                    <input type="text" id="locProv" required placeholder="e.g. Metro Manila">
+                </div>
+
+                <div class="form-group mb-5">
+                    <label>Specific Zone / Street Details <span class="text-muted">(Optional)</span></label>
+                    <input type="text" id="locZone" placeholder="e.g. District 1, Area B...">
+                </div>
+            </form>
+
+            <div id="extActionsGroup"
+                style="display:none; margin-top:16px; border-top:1px dashed rgba(255,255,255,0.1); padding-top:16px;">
+                <p class="text-xs text-secondary mb-3">Deleting a location will remove it from registration options.
+                    Existing users keep their data.</p>
+                <button class="btn nm-inset w-100 mb-2 badge-delete fw-600" onclick="deleteLocationConf()">
+                    Delete Location
+                </button>
+            </div>
+        </div>
+
+        <div class="panel-footer">
+            <button class="btn btn-ghost" onclick="closePanel()">Cancel</button>
+            <button class="btn gradient-brand text-dark" id="saveLocBtn" onclick="saveLoc()">Save Location</button>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
-        // Check authentication and admin role
+        let allLocations = [];
+        let currentMode = 'create'; // 'create' or 'edit'
+
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
 
-            if (user.role !== 'admin') {
-                alert('Access denied. Admin only.');
-                window.location.href = '/pages/dashboard-resident.html';
-                return;
-            }
-
+            document.getElementById('searchLocation').addEventListener('input', renderLocations);
             await loadLocations();
         });
 
         async function loadLocations() {
+            const tbody = document.getElementById('locationsTableBody');
+            showSkeletonList(tbody, 4, 'table', 5);
             try {
-                const response = await fetch('/api/locations', {
-                    credentials: 'include'
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    displayLocations(data.data || []);
-                } else {
-                    document.getElementById('locationsTableBody').innerHTML = 
-                        '<tr><td colspan="5" style="text-align: center;">Error loading locations</td></tr>';
-                }
-            } catch (error) {
-                console.error('Error loading locations:', error);
-                document.getElementById('locationsTableBody').innerHTML = 
-                    '<tr><td colspan="5" style="text-align: center;">Error loading locations</td></tr>';
+                const res = await apiFetch('/api/locations');
+                allLocations = res.data || [];
+                renderLocations();
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Failed to load locations.</td></tr>`;
             }
         }
 
-        function displayLocations(locations) {
+        function renderLocations() {
+            const search = document.getElementById('searchLocation').value.trim().toLowerCase();
             const tbody = document.getElementById('locationsTableBody');
 
-            if (locations.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No locations found. Add one above.</td></tr>';
+            const filtered = allLocations.filter(loc => {
+                if (!search) return true;
+                const terms = `${loc.barangay_name} ${loc.municipality} ${loc.province} ${loc.zone_or_street || ''}`.toLowerCase();
+                return terms.includes(search);
+            });
+
+            document.getElementById('locCount').textContent = filtered.length;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:40px; color:var(--text-muted);">No assigned operational matrices found.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = locations.map(location => `
-                <tr>
-                    <td>${location.barangay_name}</td>
-                    <td>${location.municipality}</td>
-                    <td>${location.province}</td>
-                    <td>${location.zone_or_street || '-'}</td>
+            tbody.innerHTML = filtered.map(loc => `
+                <tr onclick="openPanel('edit', ${loc.location_id})">
                     <td>
-                        <button onclick="deleteLocation(${location.location_id})" class="btn btn-secondary btn-small btn-danger">Delete</button>
+                        <div class="fw-600">${escapeHtml(loc.barangay_name)}</div>
+                    </td>
+                    <td class="text-secondary">${escapeHtml(loc.municipality)}</td>
+                    <td class="text-secondary">${escapeHtml(loc.province)}</td>
+                    <td class="text-muted" style="font-size:12px;">${escapeHtml(loc.zone_or_street || '-')}</td>
+                    <td class="text-right">
+                        <span class="text-lime fw-600" style="font-size:12px;">Manage →</span>
                     </td>
                 </tr>
             `).join('');
         }
 
-        // Add location form
-        document.getElementById('addLocationForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        /* --- Panel Logic --- */
+        window.openPanel = function (mode, id = null) {
+            currentMode = mode;
+            const form = document.getElementById('locForm');
+            form.reset();
 
-            const formData = {
-                barangay_name: document.getElementById('barangayName').value.trim(),
-                municipality: document.getElementById('municipality').value.trim(),
-                province: document.getElementById('province').value.trim(),
-                zone_or_street: document.getElementById('zoneOrStreet').value.trim() || null
+            const extActions = document.getElementById('extActionsGroup');
+            const title = document.getElementById('panelTitle');
+            const btn = document.getElementById('saveLocBtn');
+
+            if (mode === 'create') {
+                title.textContent = 'Add Location';
+                btn.textContent = 'Add Location';
+                extActions.style.display = 'none';
+                document.getElementById('editLocId').value = '';
+            } else {
+                title.textContent = 'Edit Location';
+                btn.textContent = 'Save Changes';
+                extActions.style.display = 'block';
+
+                const loc = allLocations.find(x => x.location_id === id);
+                if (loc) {
+                    document.getElementById('editLocId').value = loc.location_id;
+                    document.getElementById('locBarangay').value = loc.barangay_name || '';
+                    document.getElementById('locMuni').value = loc.municipality || '';
+                    document.getElementById('locProv').value = loc.province || '';
+                    document.getElementById('locZone').value = loc.zone_or_street || '';
+                }
+            }
+
+            document.getElementById('panelOverlay').classList.add('open');
+            document.getElementById('locPanel').classList.add('open');
+            document.body.style.overflow = 'hidden';
+
+            setTimeout(() => document.getElementById('locBarangay').focus(), 100);
+        };
+
+        window.closePanel = function () {
+            document.getElementById('panelOverlay').classList.remove('open');
+            document.getElementById('locPanel').classList.remove('open');
+            document.body.style.overflow = '';
+        };
+
+        window.saveLoc = async function (e) {
+            if (e) e.preventDefault();
+            const form = document.getElementById('locForm');
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+
+            const btn = document.getElementById('saveLocBtn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+
+            const payload = {
+                barangay_name: document.getElementById('locBarangay').value.trim(),
+                municipality: document.getElementById('locMuni').value.trim(),
+                province: document.getElementById('locProv').value.trim(),
+                zone_or_street: document.getElementById('locZone').value.trim() || null
             };
 
             try {
-                const response = await fetch('/api/locations', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify(formData)
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.status === 'success') {
-                    showAlert('Barangay added successfully!', 'success');
-                    document.getElementById('addLocationForm').reset();
-                    await loadLocations();
+                if (currentMode === 'create') {
+                    const res = await apiFetch('/api/locations', { method: 'POST', body: JSON.stringify(payload) });
+                    if (res.status === 'success') { showToast('Location added successfully', 'success'); closePanel(); loadLocations(); }
                 } else {
-                    showAlert(data.message || 'Failed to add barangay', 'error');
+                    const id = document.getElementById('editLocId').value;
+                    const res = await apiFetch(`/api/locations/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+                    if (res.status === 'success') { showToast('Location updated', 'success'); closePanel(); loadLocations(); }
                 }
-            } catch (error) {
-                console.error('Error adding location:', error);
-                showAlert('An error occurred. Please try again.', 'error');
+            } catch (e) {
+                // Handled in apiFetch
+            } finally {
+                btn.disabled = false; btn.textContent = currentMode === 'create' ? 'Add Location' : 'Save Changes';
             }
+        };
+
+        // Form enter key
+        document.getElementById('locForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            saveLoc();
         });
 
-        async function deleteLocation(locationId) {
-            if (!confirm('Are you sure you want to delete this barangay? This action cannot be undone.')) {
-                return;
-            }
+        window.deleteLocationConf = async function () {
+            const id = document.getElementById('editLocId').value;
+            const isConfirmed = await showConfirmToast('Delete Location?', `This removes the location from being selectable. Proceed?`);
+            if (!isConfirmed) return;
 
             try {
-                const response = await fetch(`/api/locations/${locationId}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.status === 'success') {
-                    showAlert('Barangay deleted successfully!', 'success');
-                    await loadLocations();
-                } else {
-                    showAlert(data.message || 'Failed to delete barangay', 'error');
+                const res = await apiFetch(`/api/locations/${id}`, { method: 'DELETE' });
+                if (res.status === 'success') {
+                    showToast('Location deleted', 'success');
+                    closePanel();
+                    loadLocations();
                 }
-            } catch (error) {
-                console.error('Error deleting location:', error);
-                showAlert('An error occurred. Please try again.', 'error');
-            }
-        }
+            } catch (e) { }
+        };
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[m]);
         }
     </script>
 </body>
+
 </html>

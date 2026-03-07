@@ -66,7 +66,7 @@ const getSchedulesByUser = async (req, res) => {
 const getSchedulesByLocation = async (req, res) => {
   try {
     const { locationId } = req.params;
-    
+
     // Check if user is authorized to view this location's schedules
     // Residents can only view their own location's schedules
     if (req.session && req.session.userId) {
@@ -90,6 +90,34 @@ const getSchedulesByLocation = async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to get schedules',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get all schedules (admin only)
+ */
+const getAllSchedules = async (req, res) => {
+  try {
+    if (!req.session || req.session.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Only administrators can view all schedules'
+      });
+    }
+
+    const schedules = await Schedule.getAll();
+
+    res.json({
+      status: 'success',
+      data: schedules
+    });
+  } catch (error) {
+    console.error('Get all schedules error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get all schedules',
       error: error.message
     });
   }
@@ -257,6 +285,7 @@ module.exports = {
   getUpcomingSchedules,
   getSchedulesByUser,
   getSchedulesByLocation,
+  getAllSchedules,
   createSchedule,
   updateSchedule,
   deleteSchedule

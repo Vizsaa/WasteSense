@@ -1,258 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Waste Categories - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        .table {
+        .admin-table {
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
+            border-collapse: separate;
+            border-spacing: 0 var(--space-2);
+            margin-top: var(--space-3);
         }
-        .table th, .table td {
-            padding: 12px;
+
+        .admin-table th {
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            padding: 0 var(--space-4) var(--space-2);
             text-align: left;
-            border-bottom: 1px solid #ddd;
-            vertical-align: top;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .table th {
-            background: #f8f9fa;
-            font-weight: 600;
+
+        .admin-table td {
+            background: var(--bg-inset);
+            padding: var(--space-3) var(--space-4);
+            font-size: var(--text-sm);
         }
-        .row-actions {
+
+        .admin-table tbody tr {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .admin-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-table td:first-child {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+        }
+
+        .admin-table td:last-child {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            text-align: right;
+        }
+
+        /* Side Panel Styling */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 100%;
+            max-width: 450px;
+            height: 100vh;
+            background: var(--bg-raised);
+            z-index: 1050;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
-            gap: 8px;
+            flex-direction: column;
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .side-panel.open {
+            right: 0;
+        }
+
+        .panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.6);
+            backdrop-filter: blur(3px);
+            z-index: 1040;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .panel-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .panel-header {
+            padding: var(--space-4) var(--space-5);
+            background: var(--bg-surface);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-body {
+            padding: var(--space-5);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .panel-footer {
+            padding: var(--space-4) var(--space-5);
+            background: var(--bg-surface);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-3);
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: var(--space-3);
+            background: var(--bg-inset);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-4);
             flex-wrap: wrap;
+            align-items: center;
         }
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 13px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .badge-active { background: #198754; color: #fff; }
-        .badge-inactive { background: #dc3545; color: #fff; }
-        .muted { color: #6c757d; font-size: 12px; }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Waste Categories</h1>
-            <p>Create and manage the waste category options residents can select during submission.</p>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5">
+            <div>
+                <a href="dashboard-admin.html" class="text-secondary text-sm mb-2"
+                    style="display:inline-block; text-decoration:none;">← Back to Dashboard</a>
+                <h1 style="margin:0; font-size:var(--text-2xl);">Directory: Categories</h1>
+                <p class="text-secondary mt-1">Configure accepted waste profiles and types.</p>
+            </div>
+            <button class="btn gradient-brand text-dark" style="background:var(--brand-lime);"
+                onclick="openPanel('create')">
+                <span style="font-size:18px;">+</span> New Category
+            </button>
         </div>
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
-                <li><a href="admin-categories.html">Categories</a></li>
-                <li><a href="admin-schedules.html">Schedules</a></li>
-            </ul>
-        </nav>
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="input-group" style="flex: 1; min-width: 250px;">
+                <input type="text" id="searchCategory" placeholder="Search categories..." class="input-light">
+            </div>
 
-        <div class="content-section">
-            <h2>Create Category</h2>
-            <div id="alert-container"></div>
-            <form id="createForm" class="add-location-form">
-                <div class="form-row" style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group">
-                        <label for="displayName">Display Name *</label>
-                        <input type="text" id="displayName" required placeholder="e.g., Biodegradable">
-                    </div>
-                    <div class="form-group">
-                        <label for="categoryKey">Key (optional)</label>
-                        <input type="text" id="categoryKey" placeholder="e.g., biodegradable">
-                        <div class="muted">If blank, we derive it from the name (lowercase, hyphenated).</div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="description">Description (optional)</label>
-                    <textarea id="description" rows="2" placeholder="What belongs in this category?"></textarea>
-                </div>
-                <button type="submit" class="btn">Create</button>
-            </form>
+            <div class="d-flex gap-2">
+                <select id="statusFilter" class="input-light" style="width:auto;">
+                    <option value="">All Statuses</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
         </div>
 
-        <div class="content-section">
-            <h2>Existing Categories</h2>
-            <table class="table">
+        <!-- Desktop Table -->
+        <div style="overflow-x:auto;">
+            <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Key</th>
-                        <th>Name</th>
+                        <th style="width:250px;">Category Name</th>
+                        <th>System Key</th>
                         <th>Description</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <tr><td colspan="5" style="text-align:center;">Loading...</td></tr>
+                    <!-- Injected via JS -->
                 </tbody>
             </table>
         </div>
     </div>
 
+    <!-- Overlay & Side Panel -->
+    <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+
+    <div class="side-panel" id="categoryPanel">
+        <div class="panel-header">
+            <h2 id="panelTitle" style="font-size:var(--text-xl); margin:0;">Create Category</h2>
+            <button class="btn-cancel" onclick="closePanel()"
+                style="background:transparent; border:none; font-size:24px; color:var(--text-secondary); cursor:pointer;">×</button>
+        </div>
+
+        <div class="panel-body">
+            <form id="categoryForm">
+                <input type="hidden" id="editCatId">
+                <input type="submit" hidden />
+
+                <div class="form-group">
+                    <label>Display Name <span class="text-lime">*</span></label>
+                    <input type="text" id="catName" required placeholder="e.g. Hazardous Waste">
+                </div>
+
+                <div class="form-group">
+                    <label>System Key <span class="text-muted">(Optional)</span></label>
+                    <input type="text" id="catKey" placeholder="e.g. hazardous">
+                    <div class="text-xs text-muted mt-1">Leave blank to auto-generate from Display Name.</div>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label style="display:flex; justify-content:space-between;">
+                        <span>Active Status</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="checkbox" id="catActive" checked>
+                            <span class="text-sm">Enabled for Residents</span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="form-group mb-5">
+                    <label>Description / Instructions <span class="text-muted">(Optional)</span></label>
+                    <textarea id="catDesc" rows="4"
+                        placeholder="Describe what residents should include in this category..."></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel-footer">
+            <button class="btn btn-ghost" onclick="closePanel()">Cancel</button>
+            <button class="btn gradient-brand text-dark" id="saveCatBtn" onclick="saveCategory()">Save Category</button>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
-        let categories = [];
+        let allCategories = [];
+        let currentMode = 'create';
 
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) { window.location.href = '/pages/login.html'; return; }
-            if (user.role !== 'admin') {
-                alert('Access denied. Admin only.');
-                window.location.href = '/pages/dashboard-resident.html';
-                return;
-            }
-            document.getElementById('createForm').addEventListener('submit', createCategory);
+            if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
+
+            document.getElementById('searchCategory').addEventListener('input', renderCategories);
+            document.getElementById('statusFilter').addEventListener('change', renderCategories);
+
             await loadCategories();
         });
 
         async function loadCategories() {
             const tbody = document.getElementById('tableBody');
+            showSkeletonList(tbody, 4, 'table', 5);
             try {
-                const response = await fetch('/api/categories/all', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Failed to load categories');
-                categories = data.data || [];
-                render();
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Failed to load categories.</td></tr>';
+                const res = await apiFetch('/api/categories/all');
+                allCategories = res.data || [];
+                renderCategories();
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Failed to load categories.</td></tr>`;
             }
         }
 
-        function render() {
+        function getEmoji(cat) {
+            const m = { 'biodegradable': '🌱', 'recyclable': '♻️', 'non-biodegradable': '🗑️', 'hazardous': '⚠️', 'special': '🛋️', 'mixed': '📦' };
+            return m[cat.toLowerCase()] || '📦';
+        }
+
+        function renderCategories() {
+            const search = document.getElementById('searchCategory').value.trim().toLowerCase();
+            const statusF = document.getElementById('statusFilter').value;
             const tbody = document.getElementById('tableBody');
-            if (categories.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No categories yet.</td></tr>';
+
+            const filtered = allCategories.filter(c => {
+                const sMatch = !search || String(c.display_name).toLowerCase().includes(search) || String(c.category_key).toLowerCase().includes(search);
+                const stMatch = !statusF || (statusF === 'active' && c.is_active) || (statusF === 'inactive' && !c.is_active);
+                return sMatch && stMatch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:40px; color:var(--text-muted);">No categories match filters.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = categories.map(c => `
-                <tr>
-                    <td><code>${c.category_key}</code></td>
-                    <td>${escapeHtml(c.display_name || '')}</td>
-                    <td>${escapeHtml(c.description || '') || '<span class="muted">—</span>'}</td>
-                    <td>${c.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Inactive</span>'}</td>
+
+            tbody.innerHTML = filtered.map(c => `
+                <tr onclick="openPanel('edit', ${c.category_id})">
                     <td>
-                        <div class="row-actions">
-                            <button class="btn btn-secondary btn-small" onclick="editCategory(${c.category_id})">Edit</button>
-                            <button class="btn btn-secondary btn-small" onclick="toggleActive(${c.category_id}, ${c.is_active ? 'false' : 'true'})">
-                                ${c.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="font-size:18px;">${getEmoji(c.category_key)}</span>
+                            <span class="fw-600">${escapeHtml(c.display_name)}</span>
                         </div>
+                    </td>
+                    <td><code style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px; color:var(--text-secondary);">${escapeHtml(c.category_key)}</code></td>
+                    <td class="text-secondary" style="font-size:12px; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${escapeHtml(c.description || '-')}
+                    </td>
+                    <td>${c.is_active ? '<span class="badge badge-read" style="background:rgba(16,185,129,0.1); color:var(--brand-emerald);">Active</span>' : '<span class="badge badge-unread">Inactive</span>'}</td>
+                    <td class="text-right">
+                        <span class="text-lime fw-600" style="font-size:12px;">Manage →</span>
                     </td>
                 </tr>
             `).join('');
         }
 
-        async function createCategory(e) {
+        /* --- Panel Logic --- */
+        window.openPanel = function (mode, id = null) {
+            currentMode = mode;
+            const form = document.getElementById('categoryForm');
+            form.reset();
+
+            const title = document.getElementById('panelTitle');
+            const btn = document.getElementById('saveCatBtn');
+            const actCheck = document.getElementById('catActive');
+
+            if (mode === 'create') {
+                title.textContent = 'Create Category';
+                btn.textContent = 'Create Category';
+                document.getElementById('editCatId').value = '';
+                actCheck.checked = true;
+            } else {
+                title.textContent = 'Edit Category';
+                btn.textContent = 'Save Changes';
+
+                const c = allCategories.find(x => x.category_id === id);
+                if (c) {
+                    document.getElementById('editCatId').value = c.category_id;
+                    document.getElementById('catName').value = c.display_name || '';
+                    document.getElementById('catKey').value = c.category_key || '';
+                    document.getElementById('catDesc').value = c.description || '';
+                    actCheck.checked = !!c.is_active;
+                }
+            }
+
+            document.getElementById('panelOverlay').classList.add('open');
+            document.getElementById('categoryPanel').classList.add('open');
+            document.body.style.overflow = 'hidden';
+
+            setTimeout(() => document.getElementById('catName').focus(), 100);
+        };
+
+        window.closePanel = function () {
+            document.getElementById('panelOverlay').classList.remove('open');
+            document.getElementById('categoryPanel').classList.remove('open');
+            document.body.style.overflow = '';
+        };
+
+        window.saveCategory = async function (e) {
+            if (e) e.preventDefault();
+            const form = document.getElementById('categoryForm');
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+
+            const btn = document.getElementById('saveCatBtn');
+            btn.disabled = true; btn.textContent = 'Saving...';
+
+            const payload = {
+                display_name: document.getElementById('catName').value.trim(),
+                category_key: document.getElementById('catKey').value.trim() || undefined,
+                description: document.getElementById('catDesc').value.trim() || null
+            };
+
+            const is_active = document.getElementById('catActive').checked;
+
+            try {
+                if (currentMode === 'create') {
+                    // API expects description, display_name, category_key
+                    const res = await apiFetch('/api/categories', { method: 'POST', body: JSON.stringify(payload) });
+                    if (res.status === 'success') { showToast('Category created', 'success'); closePanel(); loadCategories(); }
+                } else {
+                    const id = document.getElementById('editCatId').value;
+                    payload.is_active = is_active;
+                    const res = await apiFetch(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+                    if (res.status === 'success') { showToast('Category updated', 'success'); closePanel(); loadCategories(); }
+                }
+            } catch (e) { } finally {
+                btn.disabled = false; btn.textContent = currentMode === 'create' ? 'Create Category' : 'Save Changes';
+            }
+        };
+
+        document.getElementById('categoryForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            const original = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Creating...';
-            try {
-                const payload = {
-                    display_name: document.getElementById('displayName').value.trim(),
-                    category_key: document.getElementById('categoryKey').value.trim() || undefined,
-                    description: document.getElementById('description').value.trim() || null
-                };
-                const response = await fetch('/api/categories', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Failed to create category');
-                showAlert('Category created.', 'success');
-                e.target.reset();
-                await loadCategories();
-            } catch (err) {
-                console.error(err);
-                showAlert(err.message || 'Failed to create category.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = original;
-            }
-        }
-
-        async function editCategory(categoryId) {
-            const c = categories.find(x => x.category_id === categoryId);
-            if (!c) return;
-
-            const newName = prompt('Display name:', c.display_name || '');
-            if (newName === null) return;
-            const newKey = prompt('Key (lowercase, hyphenated):', c.category_key || '');
-            if (newKey === null) return;
-            const newDesc = prompt('Description (optional):', c.description || '');
-            if (newDesc === null) return;
-
-            try {
-                const response = await fetch(`/api/categories/${categoryId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        display_name: newName.trim(),
-                        category_key: newKey.trim(),
-                        description: newDesc.trim() || null
-                    })
-                });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Failed to update category');
-                showAlert('Category updated.', 'success');
-                await loadCategories();
-            } catch (err) {
-                console.error(err);
-                showAlert(err.message || 'Failed to update category.', 'error');
-            }
-        }
-
-        async function toggleActive(categoryId, is_active) {
-            if (!confirm('Change this category status?')) return;
-            try {
-                const response = await fetch(`/api/categories/${categoryId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ is_active })
-                });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error(data.message || 'Failed to update category');
-                showAlert('Category status updated.', 'success');
-                await loadCategories();
-            } catch (err) {
-                console.error(err);
-                showAlert(err.message || 'Failed to update category.', 'error');
-            }
-        }
-
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
-            setTimeout(() => { alertContainer.innerHTML = ''; }, 5000);
-        }
+            saveCategory();
+        });
 
         function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[m]);
         }
     </script>
 </body>
-</html>
 
+</html>

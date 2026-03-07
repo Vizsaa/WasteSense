@@ -1,319 +1,732 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
-</head>
-<body class="auth-page">
-    <div class="container">
-        <h1>WasteSense</h1>
-        <p class="subtitle">Smart Waste Collection System</p>
-        
-        <div id="alert-container"></div>
-        
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required autocomplete="email">
-            </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
-            </div>
-            
-            <button type="submit" class="btn">Login</button>
-        </form>
+    <style>
+        /* Auth Page specific layout */
+        body.auth-page {
+            display: flex;
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+            background: var(--bg-surface);
+        }
 
-        <div class="link" style="margin-top: 8px;">
-            <a href="javascript:void(0)" id="forgotLink">Forgot Password?</a>
-        </div>
+        .auth-left {
+            flex: 0 0 45%;
+            background: var(--bg-base);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-8);
+            overflow: hidden;
+        }
 
-        <div class="link">
-            Don't have an account? <a href="register.html">Register here</a>
-        </div>
-    </div>
+        .auth-left .brand-banner {
+            max-width: 300px;
+            margin-bottom: var(--space-3);
+            z-index: 2;
+        }
 
-    <!-- Forgot password modal -->
-    <div id="forgotModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 1000;">
-        <div style="background:#fff; max-width: 540px; width:100%; border-radius: 12px; box-shadow:0 10px 30px rgba(0,0,0,0.3); overflow:hidden;">
-            <div style="padding: 16px 18px; border-bottom: 1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:12px;">
-                <h3 style="margin:0; font-size:18px;">Forgot Password</h3>
-                <button type="button" id="forgotCloseBtn" class="btn btn-secondary btn-small">Close</button>
-            </div>
-            <div style="padding: 16px 18px;">
-                <div id="forgot-alert"></div>
-                <form id="forgotForm">
-                    <div class="form-group">
-                        <label for="forgotEmail">Email Address</label>
-                        <input type="email" id="forgotEmail" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="forgotType">Request Type</label>
-                        <select id="forgotType" required>
-                            <option value="change_password">Change Password</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="forgotDescription">Additional details (max 500 characters)</label>
-                        <textarea id="forgotDescription" rows="5" maxlength="500"></textarea>
-                        <small style="font-size:12px; color:#666;">
-                            Additional details (optional). Maximum 500 characters.
-                        </small>
-                    </div>
-                    <div id="forgotStatus" style="font-size: 13px; margin-bottom: 8px;"></div>
-                    <div id="forgotResetContainer" style="display:none; border-top:1px solid #eee; margin-top:12px; padding-top:12px;">
-                        <h4 style="margin:0 0 8px; font-size:14px;">Set New Password (Approved)</h4>
-                        <div class="form-group">
-                            <label for="forgotNewPassword">New Password</label>
-                            <input type="password" id="forgotNewPassword" minlength="6">
-                        </div>
-                        <div class="form-group">
-                            <label for="forgotNewPasswordConfirm">Confirm New Password</label>
-                            <input type="password" id="forgotNewPasswordConfirm" minlength="6">
-                        </div>
-                        <button type="button" class="btn btn-secondary" id="forgotResetBtn">Change Password</button>
-                    </div>
-                    <button type="submit" class="btn">Submit Request</button>
-                </form>
-            </div>
-        </div>
-    </div>
+        .auth-left .catchphrase-img {
+            max-width: 180px;
+            margin-bottom: var(--space-6);
+            z-index: 2;
+        }
 
-    <script src="../js/auth.js"></script>
-    <script>
-        // Check if already logged in — redirect to dashboard if authenticated
-        async function initLogin() {
-            try {
-                const user = await checkAuthStatus();
-                if (user && user.role) {
-                    redirectByRole(user.role);
-                }
-            } catch (e) {
-                console.warn('Auth check skipped:', e);
+        .auth-left .mascot {
+            z-index: 2;
+        }
+
+        /* Decorative blobs */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(110, 224, 0, 0.06);
+            z-index: 1;
+        }
+
+        .blob-1 {
+            width: 300px;
+            height: 300px;
+            top: -50px;
+            left: -100px;
+        }
+
+        .blob-2 {
+            width: 400px;
+            height: 400px;
+            bottom: -100px;
+            right: -150px;
+        }
+
+        .blob-3 {
+            width: 150px;
+            height: 150px;
+            top: 30%;
+            right: 10%;
+        }
+
+        .auth-right {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-8);
+            position: relative;
+        }
+
+        .auth-form-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .auth-form-container h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: var(--space-2);
+        }
+
+        .auth-form-container p.subtitle {
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            margin-bottom: var(--space-6);
+        }
+
+        .input-icon-wrapper {
+            position: relative;
+            margin-bottom: var(--space-4);
+        }
+
+        .input-icon-wrapper .icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            pointer-events: none;
+        }
+
+        .input-icon-wrapper input {
+            padding-left: 48px;
+            height: 52px;
+        }
+
+        .eye-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+
+        .forgot-link {
+            display: block;
+            text-align: right;
+            color: var(--brand-lime);
+            font-size: var(--text-sm);
+            margin-top: -8px;
+            margin-bottom: var(--space-6);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: var(--space-6) 0;
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(110, 224, 0, 0.1);
+        }
+
+        .divider:not(:empty)::before {
+            margin-right: .5em;
+        }
+
+        .divider:not(:empty)::after {
+            margin-left: .5em;
+        }
+
+        .auth-mobile-header {
+            display: none;
+            text-align: center;
+            margin-bottom: var(--space-6);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-4);
+            z-index: 1000;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 480px;
+            padding: var(--space-8);
+        }
+
+        .request-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-3);
+            margin-bottom: var(--space-4);
+        }
+
+        .request-card {
+            padding: var(--space-3);
+            text-align: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .request-card.selected {
+            border-color: var(--brand-lime);
+        }
+
+        .request-card .checkmark {
+            display: none;
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            color: var(--brand-lime);
+            font-size: 14px;
+        }
+
+        .request-card.selected .checkmark {
+            display: block;
+        }
+
+        #newEmailField {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        #newEmailField.expanded {
+            max-height: 100px;
+        }
+
+        @media (max-width: 768px) {
+            .auth-left {
+                display: none;
+            }
+
+            .auth-mobile-header {
+                display: block;
+            }
+
+            .request-grid {
+                grid-template-columns: 1fr;
             }
         }
+    </style>
+</head>
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initLogin);
-        } else {
-            initLogin();
+<body class="auth-page stagger-1">
+
+    <!-- Desktop Left Panel -->
+    <div class="auth-left">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+
+        <img src="../assets/banner.png" alt="WasteSense" class="brand-banner">
+        <img src="../assets/catchphrase.png" alt="Dispose Well!" class="mascot catchphrase-img">
+        <img src="../assets/mascot1.png" alt="WasteSense Mascot" class="mascot mascot-lg mt-4">
+    </div>
+
+    <!-- Right Form Panel -->
+    <div class="auth-right">
+        <div class="auth-form-container">
+
+            <div class="auth-mobile-header">
+                <img src="../assets/banner.png" alt="WasteSense" class="brand-banner"
+                    style="max-width:200px; margin:0 auto;">
+            </div>
+
+            <h1 class="gradient-text">Welcome back</h1>
+            <p class="subtitle">Log in to your account</p>
+
+            <form id="loginForm">
+                <div class="input-icon-wrapper">
+                    <span class="icon">✉️</span>
+                    <input type="email" id="email" class="nm-inset" placeholder="Email Address" required
+                        autocomplete="email">
+                </div>
+
+                <div class="input-icon-wrapper">
+                    <span class="icon">🔒</span>
+                    <input type="password" id="password" class="nm-inset" placeholder="Password" required
+                        autocomplete="current-password">
+                    <button type="button" class="eye-toggle" onclick="togglePassword()">👁️</button>
+                </div>
+
+                <a href="javascript:void(0)" id="forgotLink" class="forgot-link">Need help with your account?</a>
+
+                <button type="submit" class="btn gradient-brand">Log In →</button>
+                <div id="loginErrorContainer" class="text-center mt-3" style="display:none;">
+                    <img src="../assets/mascot4.png" alt="Error" class="mascot mascot-sm animate-shake">
+                </div>
+            </form>
+
+            <!-- Force Password Change Panel -->
+            <div id="forceChangePanel" style="display:none; flex-direction:column;">
+                <div style="text-align:center; margin-bottom:var(--space-4);">
+                    <div
+                        style="font-size:40px; margin-bottom:12px; display:inline-block; background:rgba(255, 111, 0, 0.1); width:60px; height:60px; line-height:60px; border-radius:50%; color:#E65100;">
+                        🔑</div>
+                    <h2 style="font-size:var(--text-lg); margin-bottom:8px;">Set Your New Password</h2>
+                    <p class="text-secondary" style="font-size:var(--text-sm); max-width:280px; margin:0 auto;">
+                        Your password was reset by an administrator. You must create a new password before continuing.
+                    </p>
+                    <div class="user-email-display fw-600 mt-2" style="color:var(--text-heading);"></div>
+                </div>
+
+                <div class="nm-flat mb-4"
+                    style="padding:12px; font-size:12px; color:var(--text-muted); text-align:center;">
+                    <span>Password must be at least 8 characters.</span>
+                </div>
+
+                <div class="input-icon-wrapper">
+                    <span class="icon">🔒</span>
+                    <input type="password" id="newPassword" class="nm-inset" placeholder="New Password" minlength="8">
+                    <button type="button" class="eye-toggle" onclick="togglePw('newPassword')">👁</button>
+                </div>
+
+                <div class="input-icon-wrapper mb-4">
+                    <span class="icon">🔒</span>
+                    <input type="password" id="confirmPassword" class="nm-inset" placeholder="Confirm New Password"
+                        minlength="8">
+                    <button type="button" class="eye-toggle" onclick="togglePw('confirmPassword')">👁</button>
+                </div>
+
+                <button id="setPasswordBtn" class="btn gradient-brand mb-3" onclick="submitNewPassword()">
+                    Set New Password →
+                </button>
+
+                <div class="text-center">
+                    <a href="#" onclick="resetToLogin()" class="forgout-link"
+                        style="color:var(--text-muted); font-size:var(--text-sm); text-decoration:none;">← Back to
+                        login</a>
+                </div>
+            </div>
+
+            <div class="divider">Don't have an account?</div>
+
+            <div class="text-center">
+                <a href="register.html" class="btn btn-ghost">Create an account</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forgot Password / Account Request Modal -->
+    <div id="forgotModal" class="modal-overlay">
+        <div class="modal-card nm-raised relative">
+
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="gradient-brand"
+                        style="width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px;">
+                        🔒
+                    </div>
+                    <h2 class="mb-0" style="font-size:1.25rem;">Account Request</h2>
+                </div>
+                <!-- Decorative mascot3 -->
+                <img src="../assets/mascot3.png" alt="Care" class="mascot"
+                    style="position:absolute; top:-20px; right:-20px; width:80px; transform:rotate(15deg);">
+            </div>
+
+            <form id="forgotForm">
+                <input type="hidden" id="forgotType" name="forgotType" value="forgot_password">
+
+                <div class="form-group mb-3">
+                    <input type="email" id="forgotEmail" class="nm-inset" placeholder="Your Email Address" required>
+                </div>
+
+                <label style="font-size:0.8rem; margin-bottom:8px;">Request Type</label>
+                <div class="request-grid">
+                    <div class="request-card nm-inset selected" data-value="forgot_password">
+                        <div class="checkmark">✅</div>
+                        <div style="font-size:24px; margin-bottom:4px;">🔑</div>
+                        <div style="font-size:0.8rem; font-weight:600;">Change Password</div>
+                    </div>
+                    <div class="request-card nm-flat" data-value="become_collector">
+                        <div class="checkmark">✅</div>
+                        <div style="font-size:24px; margin-bottom:4px;">🚛</div>
+                        <div style="font-size:0.8rem; font-weight:600;">Become Collector</div>
+                    </div>
+                    <div class="request-card nm-flat" data-value="request_admin_access">
+                        <div class="checkmark">✅</div>
+                        <div style="font-size:24px; margin-bottom:4px;">⚠️</div>
+                        <div style="font-size:0.8rem; font-weight:600;">Admin Access</div>
+                    </div>
+                    <div class="request-card nm-flat" data-value="reactivate_account">
+                        <div class="checkmark">✅</div>
+                        <div style="font-size:24px; margin-bottom:4px;">🔓</div>
+                        <div style="font-size:0.8rem; font-weight:600;">Reactivate Account</div>
+                    </div>
+                    <div class="request-card nm-flat" data-value="update_email">
+                        <div class="checkmark">✅</div>
+                        <div style="font-size:24px; margin-bottom:4px;">✉️</div>
+                        <div style="font-size:0.8rem; font-weight:600;">Change Email</div>
+                    </div>
+                    <div class="request-card nm-flat" data-value="report_issue">
+                        <div class="checkmark">✅</div>
+                        <div style="font-size:24px; margin-bottom:4px;">🐛</div>
+                        <div style="font-size:0.8rem; font-weight:600;">Report Issue</div>
+                    </div>
+                </div>
+
+                <div id="newEmailField" class="mb-3">
+                    <input type="email" id="newEmailInput" class="nm-inset" placeholder="New Email Address">
+                </div>
+
+                <div class="form-group mb-4">
+                    <textarea id="forgotDescription" class="nm-inset" rows="3" maxlength="500"
+                        placeholder="Additional details..." required></textarea>
+                    <small id="forgotDescriptionHint" class="text-muted d-block mt-2">Explain why you need your password
+                        reset.</small>
+                </div>
+
+                <!-- Status & Reset Inject Container -->
+                <div id="forgotStatus" style="font-size:13px; margin-bottom:12px; font-weight:600;"></div>
+                <div id="forgotResetContainer" style="display:none; margin-bottom:16px;">
+                    <h4 class="mb-2" style="font-size:0.9rem;">Set New Password</h4>
+                    <input type="password" id="forgotNewPassword" class="nm-inset mb-2" placeholder="New Password"
+                        minlength="6">
+                    <input type="password" id="forgotNewPasswordConfirm" class="nm-inset mb-3"
+                        placeholder="Confirm Password" minlength="6">
+                    <button type="button" class="btn btn-emerald" id="forgotResetBtn">Save New Password</button>
+                </div>
+
+                <div class="d-flex gap-3">
+                    <button type="button" class="btn btn-ghost" style="flex:1;" id="forgotCloseBtn">Cancel</button>
+                    <button type="submit" class="btn gradient-brand" style="flex:2;" id="requestSubmitBtn">Submit
+                        Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        function togglePassword() {
+            const pwd = document.getElementById('password');
+            pwd.type = pwd.type === 'password' ? 'text' : 'password';
         }
 
-        // Handle login form submission
+        // Init checks
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const user = await checkAuthStatus();
+                if (user && user.role) redirectByRole(user.role);
+            } catch (e) { }
+        });
+
+        // Form Submit
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const errBox = document.getElementById('loginErrorContainer');
 
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
             if (!email || !password) {
-                showAlert('Please fill in all fields', 'error');
+                showToast('Please fill in all fields', 'warning');
                 return;
             }
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Logging in...';
+            btn.disabled = true;
+            errBox.style.display = 'none';
+            btn.innerHTML = '<span class="loading-spinner">Wait...</span>';
 
             try {
-                const response = await fetch('/api/auth/login', {
+                const data = await apiFetch('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
 
-                const data = await response.json();
-
-                if (response.ok && data.status === 'success') {
-                    showAlert('Login successful! Redirecting...', 'success');
-                    setTimeout(() => {
-                        redirectByRole(data.data.role);
-                    }, 1000);
+                if (data.force_password_change) {
+                    await handleLoginResponse(data);
+                } else if (data.status === 'success') {
+                    showToast('Login successful! Redirecting...', 'success');
+                    setTimeout(() => redirectByRole(data.data.role), 800);
                 } else {
-                    showAlert(data.message || 'Login failed. Please check your credentials.', 'error');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalText;
+                    // Catch custom backend errors sent with status 400/401 instead of falling to generic catch
+                    showToast(data.message || 'Login failed', 'error');
+
+                    errBox.style.display = 'block';
+                    const masc = errBox.querySelector('.mascot');
+                    masc.style.animation = 'none';
+                    setTimeout(() => masc.style.animation = '', 10);
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                showAlert('Connection error. Please try again.', 'error');
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
+                // This block is only hit on actual network failures or complete 500s because of our apiFetch implementation
+                showToast(error.message || 'Login failed', 'error');
+
+                errBox.style.display = 'block';
+                const masc = errBox.querySelector('.mascot');
+                masc.style.animation = 'none';
+                setTimeout(() => masc.style.animation = '', 10);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Log In →';
             }
         });
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            if (type !== 'success') {
-                setTimeout(() => {
-                    alertContainer.innerHTML = '';
-                }, 5000);
-            }
-        }
+        // Modal Logic
+        const modal = document.getElementById('forgotModal');
+        document.getElementById('forgotLink').addEventListener('click', () => {
+            document.getElementById('forgotEmail').value = document.getElementById('email').value;
+            modal.style.display = 'flex';
+        });
+        document.getElementById('forgotCloseBtn').addEventListener('click', () => modal.style.display = 'none');
+        modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
 
-        // Forgot password modal logic
-        const forgotModal = document.getElementById('forgotModal');
-        const forgotLink = document.getElementById('forgotLink');
-        const forgotCloseBtn = document.getElementById('forgotCloseBtn');
+        // Request Type Cards Selection
+        const cards = document.querySelectorAll('.request-card');
+        const typeInput = document.getElementById('forgotType');
+        const descHint = document.getElementById('forgotDescriptionHint');
+        const newEmailContainer = document.getElementById('newEmailField');
+        const newEmailInput = document.getElementById('newEmailInput');
 
-        forgotLink.addEventListener('click', () => {
-            const emailVal = document.getElementById('email').value.trim();
-            const forgotEmailInput = document.getElementById('forgotEmail');
-            if (emailVal) forgotEmailInput.value = emailVal;
-            openForgotModal();
+        const hints = {
+            forgot_password: "Explain why you need your password reset.",
+            become_collector: "Provide reason for requesting Collector assignment.",
+            request_admin_access: "LGU Staff ONLY. Provide authorization ID.",
+            reactivate_account: "Describe why your account should be restored.",
+            update_email: "Provide your desired new email address.",
+            report_issue: "Describe the bug (page, action, error message)."
+        };
+
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                cards.forEach(c => {
+                    c.classList.remove('selected', 'nm-inset');
+                    c.classList.add('nm-flat');
+                });
+                card.classList.remove('nm-flat');
+                card.classList.add('selected', 'nm-inset');
+
+                const val = card.dataset.value;
+                typeInput.value = val;
+                descHint.textContent = hints[val];
+
+                if (val === 'update_email') {
+                    newEmailContainer.classList.add('expanded');
+                    newEmailInput.required = true;
+                } else {
+                    newEmailContainer.classList.remove('expanded');
+                    newEmailInput.required = false;
+                    newEmailInput.value = '';
+                }
+            });
         });
 
-        function openForgotModal() {
-            forgotModal.style.display = 'flex';
-            document.getElementById('forgotStatus').textContent = '';
-            document.getElementById('forgot-alert').innerHTML = '';
-        }
-
-        function closeForgotModal() {
-            forgotModal.style.display = 'none';
-        }
-
-        forgotCloseBtn.addEventListener('click', closeForgotModal);
-        forgotModal.addEventListener('click', (e) => {
-            if (e.target === forgotModal) closeForgotModal();
-        });
-
-        // Check request status when email loses focus
+        // Status Polling
         document.getElementById('forgotEmail').addEventListener('blur', async () => {
             const email = document.getElementById('forgotEmail').value.trim();
             const statusEl = document.getElementById('forgotStatus');
             const resetContainer = document.getElementById('forgotResetContainer');
-            if (!email) {
-                statusEl.textContent = '';
-                resetContainer.style.display = 'none';
-                return;
-            }
+            if (!email) { statusEl.textContent = ''; resetContainer.style.display = 'none'; return; }
+
             try {
-                const resp = await fetch('/api/auth/password-request/status?email=' + encodeURIComponent(email), {
-                    credentials: 'include'
-                });
-                const data = await resp.json();
-                if (!resp.ok || data.status !== 'success') {
-                    statusEl.textContent = '';
-                    resetContainer.style.display = 'none';
-                    return;
-                }
+                const data = await apiFetch('/api/auth/password-request/status?email=' + encodeURIComponent(email));
+                if (data.status !== 'success') return;
+
                 const st = data.data?.status || 'none';
                 if (st === 'denied') {
-                    statusEl.textContent = 'Request Denied';
-                    statusEl.style.color = '#dc3545';
+                    statusEl.textContent = '❌ Request Denied';
+                    statusEl.style.color = 'var(--status-denied)';
                     resetContainer.style.display = 'none';
                 } else if (st === 'accepted') {
-                    statusEl.textContent = 'Request accepted. You may now set a new password below.';
-                    statusEl.style.color = '#198754';
-                    resetContainer.style.display = 'block';
+                    const reqType = data.data?.request_type || 'forgot_password';
+                    if (reqType === 'forgot_password') {
+                        statusEl.textContent = '✅ Request accepted! Set your new password below.';
+                        statusEl.style.color = 'var(--status-collected)';
+                        resetContainer.style.display = 'block';
+                    } else {
+                        statusEl.textContent = '✅ Access Approved. Please log in again.';
+                        statusEl.style.color = 'var(--status-collected)';
+                    }
                 } else if (st === 'pending') {
-                    statusEl.textContent = 'Request pending review by admin.';
-                    statusEl.style.color = '#6c757d';
-                    resetContainer.style.display = 'none';
-                } else {
-                    statusEl.textContent = '';
+                    statusEl.textContent = '⏳ Request is pending admin review.';
+                    statusEl.style.color = 'var(--status-pending)';
                     resetContainer.style.display = 'none';
                 }
-            } catch {
-                statusEl.textContent = '';
-                resetContainer.style.display = 'none';
-            }
+            } catch (e) { }
         });
 
-        // Submit forgot password request
+        // Request Submission
         document.getElementById('forgotForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('forgotEmail').value.trim();
-            const type = document.getElementById('forgotType').value;
-            const description = document.getElementById('forgotDescription').value.trim();
-            const alertBox = document.getElementById('forgot-alert');
+            const btn = document.getElementById('requestSubmitBtn');
+            const type = typeInput.value;
 
-            const btn = e.target.querySelector('button[type="submit"]');
-            const original = btn.textContent;
+            let payload = {
+                email: document.getElementById('forgotEmail').value,
+                type: type,
+                description: document.getElementById('forgotDescription').value
+            };
+
+            if (type === 'update_email') {
+                payload.metadata = { new_email: newEmailInput.value };
+            }
+
             btn.disabled = true;
-            btn.textContent = 'Submitting...';
-
             try {
-                const resp = await fetch('/api/auth/password-request', {
+                await apiFetch('/api/auth/password-request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, type, description })
+                    body: JSON.stringify(payload)
                 });
-                const data = await resp.json();
-                if (resp.ok && data.status === 'success') {
-                    alertBox.innerHTML = '<div class="alert alert-success">Sent to admin, please wait.</div>';
-                    document.getElementById('forgotDescription').value = '';
-                } else {
-                    alertBox.innerHTML = `<div class="alert alert-error">${data.message || 'Failed to submit request.'}</div>`;
-                }
-            } catch (err) {
-                console.error(err);
-                alertBox.innerHTML = '<div class="alert alert-error">An error occurred. Please try again.</div>';
-            } finally {
-                btn.disabled = false;
-                btn.textContent = original;
-            }
+                showToast('Request sent successfully!', 'success');
+                document.getElementById('forgotDescription').value = '';
+                modal.style.display = 'none';
+            } catch (e) { /* Error toast handled universally */ }
+            btn.disabled = false;
         });
 
-        // Handle approved password reset inside modal
+        // Reset Password Form Inside Modal
         document.getElementById('forgotResetBtn').addEventListener('click', async () => {
-            const email = document.getElementById('forgotEmail').value.trim();
-            const newPassword = document.getElementById('forgotNewPassword').value;
-            const confirmPassword = document.getElementById('forgotNewPasswordConfirm').value;
-            const alertBox = document.getElementById('forgot-alert');
+            const email = document.getElementById('forgotEmail').value;
+            const pw1 = document.getElementById('forgotNewPassword').value;
+            const pw2 = document.getElementById('forgotNewPasswordConfirm').value;
 
-            if (!email || !newPassword || !confirmPassword) {
-                alertBox.innerHTML = '<div class="alert alert-error">Please fill in all password fields.</div>';
-                return;
+            if (pw1.length < 6) { showToast('Password must be 6+ characters', 'warning'); return; }
+            if (pw1 !== pw2) { showToast('Passwords do not match', 'error'); return; }
+
+            try {
+                await apiFetch('/api/auth/password-reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, new_password: pw1, confirm_password: pw2 })
+                });
+                showToast('Password changed successfully!', 'success');
+                modal.style.display = 'none';
+            } catch (e) { }
+        });
+
+        // Forced Password Change Logic
+        let limitedToken = null;
+
+        function togglePw(id) {
+            const el = document.getElementById(id);
+            if (el) el.type = el.type === 'password' ? 'text' : 'password';
+        }
+
+        async function handleLoginResponse(data) {
+            if (data.force_password_change) {
+                limitedToken = data.limited_token;
+                document.querySelector('.user-email-display').textContent = document.getElementById('email').value;
+                transitionToPanel('loginForm', 'forceChangePanel');
             }
-            if (newPassword.length < 6) {
-                alertBox.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters long.</div>';
+        }
+
+        async function submitNewPassword() {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const btn = document.getElementById('setPasswordBtn');
+
+            if (!newPassword || newPassword.length < 8) {
+                showToast('Password must be at least 8 characters.', 'error');
                 return;
             }
             if (newPassword !== confirmPassword) {
-                alertBox.innerHTML = '<div class="alert alert-error">Passwords do not match.</div>';
+                showToast('Passwords do not match.', 'error');
                 return;
             }
 
-            const btn = document.getElementById('forgotResetBtn');
-            const original = btn.textContent;
             btn.disabled = true;
-            btn.textContent = 'Changing...';
+            btn.innerHTML = '<span class="loading-spinner"></span> Updating...';
 
             try {
-                const resp = await fetch('/api/auth/password-reset', {
+                const res = await fetch('/api/auth/set-new-password', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email,
-                        new_password: newPassword,
-                        confirm_password: confirmPassword
-                    })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${limitedToken}`
+                    },
+                    body: JSON.stringify({ new_password: newPassword, confirm_password: confirmPassword })
                 });
-                const data = await resp.json();
-                if (resp.ok && data.status === 'success') {
-                    alertBox.innerHTML = '<div class="alert alert-success">Password changed. You can now log in with your new password.</div>';
-                } else {
-                    const msg = data.message || 'Failed to reset password.';
-                    alertBox.innerHTML = `<div class="alert alert-error">${msg}</div>`;
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.message || 'Failed to update password.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Set New Password →';
+                    return;
                 }
+
+                showToast('Password updated! Redirecting...', 'success');
+                setTimeout(() => redirectByRole(data.data?.role), 1500);
+
             } catch (err) {
-                console.error(err);
-                alertBox.innerHTML = '<div class="alert alert-error">An error occurred while resetting password.</div>';
-            } finally {
+                showToast('Connection error. Please try again.', 'error');
                 btn.disabled = false;
-                btn.textContent = original;
+                btn.innerHTML = 'Set New Password →';
             }
-        });
+        }
+
+        function resetToLogin() {
+            limitedToken = null;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            transitionToPanel('forceChangePanel', 'loginForm');
+        }
+
+        function transitionToPanel(hideId, showId) {
+            const hide = document.getElementById(hideId);
+            const show = document.getElementById(showId);
+
+            // Note: loginForm is a form, forceChangePanel is a flex div
+            hide.style.transition = 'all 0.3s ease';
+            hide.style.opacity = '0';
+            hide.style.transform = 'translateY(-20px)';
+
+            setTimeout(() => {
+                hide.style.display = 'none';
+                show.style.display = showId === 'loginForm' ? 'block' : 'flex';
+                show.style.opacity = '0';
+                show.style.transform = 'translateY(20px)';
+
+                requestAnimationFrame(() => {
+                    show.style.transition = 'all 0.3s ease';
+                    show.style.opacity = '1';
+                    show.style.transform = 'translateY(0)';
+                });
+            }, 300);
+        }
     </script>
 </body>
+
 </html>

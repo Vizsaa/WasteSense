@@ -165,9 +165,9 @@ class WasteSubmission {
       LEFT JOIN locations l ON ws.barangay_id = l.location_id
       WHERE ws.collection_status = 'pending'
     `;
-    
+
     const params = [];
-    
+
     // Filter by waste types if provided
     if (filters.waste_types && Array.isArray(filters.waste_types) && filters.waste_types.length > 0) {
       // Filter using JSON_CONTAINS for MySQL
@@ -189,15 +189,15 @@ class WasteSubmission {
       });
       sql += ` AND (${adjectiveConditions.join(' OR ')})`;
     }
-    
+
     // Filter by barangay if provided
     if (filters.barangay_id) {
       sql += ` AND ws.barangay_id = ?`;
       params.push(filters.barangay_id);
     }
-    
+
     sql += ` ORDER BY ws.created_at DESC`;
-    
+
     const [rows] = await db.query(sql, params);
     // Parse waste_types and waste_adjectives JSON for each row
     return rows.map(row => {
@@ -401,7 +401,11 @@ class WasteSubmission {
       'collection_status',
       'scheduled_date',
       'collector_id',
-      'collected_at'
+      'collected_at',
+      'collector_notes',
+      'problem_type',
+      'problem_description',
+      'has_problem'
     ];
 
     const updates = [];
@@ -552,6 +556,84 @@ class WasteSubmission {
 
       return row;
     });
+  }
+
+  /**
+   * Get completed/collected submissions for a specific collector (Feature 4)
+   * @param {number} collectorId
+   * @returns {Promise<Array>}
+   */
+  static async getCollectorHistory(collectorId) {
+    const sql = `
+      SELECT
+        ws.*,
+        u.full_name,
+        u.email,
+        u.phone_number,
+        l.barangay_name,
+        l.municipality,
+        l.province
+      FROM waste_submissions ws
+      LEFT JOIN users u ON ws.user_id = u.user_id
+      LEFT JOIN locations l ON ws.barangay_id = l.location_id
+      WHERE ws.collector_id = ?
+        AND ws.collection_status = 'collected'
+      ORDER BY ws.collected_at DESC
+    `;
+    const [rows] = await db.query(sql, [collectorId]);
+    return rows.map(row => {
+      // Parse JSONs
+      if (row.waste_types) { try { row.waste_types = JSON.parse(row.waste_types); } catch { row.waste_types = []; } } else { row.waste_types = []; }
+      if (row.waste_adjectives) { try { row.waste_adjectives = JSON.parse(row.waste_adjectives); } catch { row.waste_adjectives = []; } } else if (row.waste_adjective) { row.waste_adjectives = [row.waste_adjective]; } else { row.waste_adjectives = []; }
+      return row;
+    });
+  }
+
+  /**
+   * Get 4 specific summary statistics for a collector (Feature 5)
+   * @param {number} collectorId
+   * @returns {Promise<Object>}
+   */
+  static async getCollectorStats(collectorId, barangayId = null) {
+    // 1. Collected Today
+    // 2. Collected This Week
+    // 3. Pending Available (System-wide, pending)
+    // 4. My Active Tasks (collector_id = me, scheduled)
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Current week boundary logic (Simple SQL WEEK function approach)
+    // Could also use MySQL YEARWEEK()
+
+    const [todayRows] = await db.query(`
+      SELECT COUNT(*) as cnt FROM waste_submissions 
+      WHERE collector_id = ? AND collection_status = 'collected' AND DATE(collected_at) = ?
+    `, [collectorId, todayStr]);
+
+    const [weekRows] = await db.query(`
+      SELECT COUNT(*) as cnt FROM waste_submissions 
+      WHERE collector_id = ? AND collection_status = 'collected' AND YEARWEEK(collected_at, 1) = YEARWEEK(CURDATE(), 1)
+    `, [collectorId]);
+
+    let pendingQuery = `SELECT COUNT(*) as cnt FROM waste_submissions WHERE collection_status = 'pending'`;
+    let pendingParams = [];
+    if (barangayId) {
+      pendingQuery += ` AND barangay_id = ?`;
+      pendingParams.push(barangayId);
+    }
+    const [pendingRows] = await db.query(pendingQuery, pendingParams);
+
+    const [activeRows] = await db.query(`
+      SELECT COUNT(*) as cnt FROM waste_submissions 
+      WHERE collector_id = ? AND collection_status = 'scheduled'
+    `, [collectorId]);
+
+    return {
+      collectedToday: todayRows[0].cnt || 0,
+      collectedThisWeek: weekRows[0].cnt || 0,
+      pendingAvailable: pendingRows[0].cnt || 0,
+      myActiveTasks: activeRows[0].cnt || 0
+    };
   }
 }
 

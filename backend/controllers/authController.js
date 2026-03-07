@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
 /**
  * Register a new user
@@ -12,6 +13,13 @@ const register = async (req, res) => {
       return res.status(400).json({
         status: 'error',
         message: 'Email, password, and full name are required'
+      });
+    }
+
+    if (!barangay_id) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Please select a valid barangay'
       });
     }
 
@@ -29,21 +37,19 @@ const register = async (req, res) => {
       });
     }
 
-    // Public registration is restricted to 'resident' role only.
-    // Admin and collector accounts can only be created by an admin.
+    // Public registration is restricted to 'resident' and 'collector' roles.
+    // Admin accounts can only be created by an admin.
     let assignedRole = 'resident';
-    if (role && role !== 'resident') {
+    if (role && (role === 'resident' || role === 'collector')) {
+      assignedRole = role;
+    } else if (role === 'admin') {
       if (req.session && req.session.userId && req.session.role === 'admin') {
-        const validRoles = ['resident', 'collector', 'admin'];
-        if (!validRoles.includes(role)) {
-          return res.status(400).json({
-            status: 'error',
-            message: 'Invalid role. Must be one of: resident, collector, admin'
-          });
-        }
-        assignedRole = role;
+        assignedRole = 'admin';
       } else {
-        assignedRole = 'resident';
+        return res.status(403).json({
+          status: 'error',
+          message: 'Unauthorized role assignment'
+        });
       }
     }
 
@@ -65,7 +71,19 @@ const register = async (req, res) => {
       });
     }
 
+    // Check if barangay exists and is active
+    const db = require('../config/db.config');
+    const [locRows] = await db.query('SELECT is_active FROM locations WHERE location_id = ?', [barangay_id]);
+    if (locRows.length === 0 || locRows[0].is_active === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Please select a valid barangay'
+      });
+    }
+
     // Create user
+    const isActive = assignedRole === 'collector' ? 0 : 1;
+
     const user = await User.create({
       email: email.trim().toLowerCase(),
       password,
@@ -73,12 +91,26 @@ const register = async (req, res) => {
       role: assignedRole,
       phone_number: phone_number ? phone_number.trim() : null,
       address: address ? address.trim() : null,
-      barangay_id: barangay_id || null
+      barangay_id: barangay_id || null,
+      is_active: isActive
     });
+
+    if (assignedRole === 'collector') {
+      const PasswordResetRequest = require('../models/PasswordResetRequest');
+      await PasswordResetRequest.create({
+        user_id: user.user_id,
+        email: user.email,
+        request_type: 'become_collector',
+        description: 'System generated: New collector registration pending verification.',
+        metadata: null
+      });
+    }
 
     res.status(201).json({
       status: 'success',
-      message: 'User registered successfully',
+      message: assignedRole === 'collector'
+        ? 'Registration recorded. Your collector account is pending LGU admin verification.'
+        : 'User registered successfully',
       data: {
         user_id: user.user_id,
         email: user.email,
@@ -119,6 +151,28 @@ const login = async (req, res) => {
       });
     }
 
+    if (!user.is_active) {
+      // Check if they are pending collector approval
+      if (user.role === 'collector') {
+        const PasswordResetRequest = require('../models/PasswordResetRequest');
+        const latestReq = await PasswordResetRequest.findLatestByEmail(user.email);
+
+        if (latestReq && latestReq.request_type === 'become_collector' && latestReq.status === 'pending') {
+          return res.status(401).json({
+            status: 'error',
+            code: 'pending_verification',
+            message: 'Your collector account is pending admin verification.'
+          });
+        }
+      }
+
+      return res.status(401).json({
+        status: 'error',
+        code: 'account_deactivated',
+        message: 'Account is deactivated. Contact admin.'
+      });
+    }
+
     // Verify password
     const isPasswordValid = await User.verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
@@ -128,17 +182,40 @@ const login = async (req, res) => {
       });
     }
 
-    // Create session
+    // Check forced password change BEFORE generating full session
+    if (user.force_password_change === 1) {
+      // Require crypto if not required at the top
+      const crypto = require('crypto');
+      const limitedToken = crypto.randomUUID();
 
+      req.session.limited_token = limitedToken;
+      req.session.password_change_user_id = user.user_id;
+
+      return res.status(200).json({
+        force_password_change: true,
+        limited_token: limitedToken,
+        message: 'Your password has been reset by an administrator. Please set a new password to continue.'
+      });
+    }
+
+    // Create standard session
     req.session.userId = user.user_id;
     req.session.email = user.email;
     req.session.role = user.role;
     req.session.full_name = user.full_name;
-    console.log('Session after login:', req.session);
+    req.session.barangay_id = user.barangay_id;
+
+    // Generate JWT Token
+    const token = jwt.sign(
+      { userId: user.user_id, email: user.email, role: user.role, barangay_id: user.barangay_id },
+      process.env.JWT_SECRET || 'super_secret_jwt_key_wastesense_2026',
+      { expiresIn: '24h' }
+    );
 
     res.json({
       status: 'success',
       message: 'Login successful',
+      token: token,
       data: {
         user_id: user.user_id,
         email: user.email,
@@ -207,9 +284,69 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+/**
+ * Set New Password after forced reset
+ */
+const setNewPassword = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ status: 'error', message: 'No token provided.' });
+
+    const token = authHeader.split(' ')[1];
+    if (token !== req.session.limited_token || !req.session.password_change_user_id) {
+      return res.status(401).json({ status: 'error', message: 'Session expired or invalid scope. Please log in again.' });
+    }
+
+    const { new_password, confirm_password } = req.body;
+    if (!new_password || new_password.length < 8) {
+      return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters.' });
+    }
+    if (new_password !== confirm_password) {
+      return res.status(400).json({ status: 'error', message: 'Passwords do not match.' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const hash = await bcrypt.hash(new_password, 10);
+
+    const db = require('../config/db.config');
+    await db.query(
+      "UPDATE users SET password_hash = ?, force_password_change = 0 WHERE user_id = ?",
+      [hash, req.session.password_change_user_id]
+    );
+
+    const user = await User.findById(req.session.password_change_user_id);
+
+    // Clear limited scope
+    delete req.session.limited_token;
+    delete req.session.password_change_user_id;
+
+    // Create standard session
+    req.session.userId = user.user_id;
+    req.session.email = user.email;
+    req.session.role = user.role;
+    req.session.full_name = user.full_name;
+
+    res.json({
+      status: 'success',
+      message: 'Password updated successfully.',
+      data: {
+        user_id: user.user_id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Set New Password error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to set password.' });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
-  getCurrentUser
+  getCurrentUser,
+  setNewPassword
 };

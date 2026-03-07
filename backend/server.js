@@ -1,11 +1,15 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const session = require('express-session');
 const path = require('path');
-require('dotenv').config();
 
 const db = require('./config/db.config');
+
+// Pre-warm the image recognition model so first request isn't slow
+const { getModel } = require('./utils/imageRecognition');
+getModel().catch(err => console.warn('[Startup] Model pre-warm failed:', err.message));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -66,6 +70,7 @@ const performanceRoutes = require('./routes/performanceRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/waste', wasteRoutes);
@@ -77,6 +82,7 @@ app.use('/api/performance', performanceRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Root route - redirect to login
 app.get('/', (req, res) => {
@@ -85,8 +91,8 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'WasteSense API is running',
     timestamp: new Date().toISOString()
   });
@@ -96,18 +102,31 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test-db', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT 1 as test');
-    res.json({ 
-      status: 'ok', 
+    res.json({
+      status: 'ok',
       message: 'Database connection successful',
       data: rows
     });
   } catch (error) {
-    res.status(500).json({ 
-      status: 'error', 
+    res.status(500).json({
+      status: 'error',
       message: 'Database connection failed',
       error: error.message
     });
   }
+});
+
+// Handle 404 for API routes
+app.use('/api', (req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'API endpoint not found'
+  });
+});
+
+// Handle 404 for Frontend routes
+app.use('*', (req, res) => {
+  res.redirect('/pages/login.html');
 });
 
 // Error handling middleware

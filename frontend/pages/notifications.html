@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,203 +8,231 @@
     <link rel="stylesheet" href="../css/style.css">
     <style>
         .notif-card {
-            background: white;
-            border-radius: 10px;
-            padding: 16px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            border: 1px solid #f1f3f5;
+            display: flex;
+            gap: var(--space-4);
+            padding: var(--space-4);
+            margin-bottom: var(--space-3);
+            border-left: 4px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
         }
-        .notif-meta {
+
+        .notif-card.unread {
+            border-left-color: var(--brand-lime);
+            background: rgba(110, 224, 0, 0.05);
+        }
+
+        .notif-icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-raised);
+        }
+
+        .notif-card.unread .notif-icon-circle {
+            background: var(--brand-lime);
+            color: var(--bg-base);
+        }
+
+        .notif-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .notif-header {
             display: flex;
             justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-            font-size: 12px;
-            color: #6c757d;
-            margin-bottom: 8px;
+            align-items: flex-start;
+            margin-bottom: var(--space-1);
         }
-        .notif-type {
+
+        .notif-time {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            white-space: nowrap;
+            margin-left: var(--space-3);
+        }
+
+        .notif-title {
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            margin-bottom: var(--space-1);
+            text-transform: capitalize;
         }
+
         .notif-message {
-            font-size: 14px;
-            color: #333;
-            line-height: 1.45;
+            color: var(--text-secondary);
+            font-size: var(--text-sm);
+            line-height: 1.4;
         }
-        .notif-actions {
-            margin-top: 10px;
-            display: flex;
-            gap: 8px;
+
+        .empty-state {
+            text-align: center;
+            padding: var(--space-8) var(--space-4);
         }
-        .btn-inline {
-            width: auto;
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-        }
-        .badge-unread { background: #fff3cd; color: #856404; }
-        .badge-read { background: #d4edda; color: #155724; }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Notifications</h1>
-            <p>View reminders and updates about your submissions and schedules.</p>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h1 style="margin-bottom:var(--space-1);">Notifications</h1>
+                <p class="text-secondary" style="font-size:var(--text-sm); margin:0;">Alerts and collection reminders
+                </p>
+            </div>
+
+            <button class="btn btn-ghost" onclick="markAllRead()" style="font-size:var(--text-xs); padding:6px 12px;">
+                ✓ Mark all read
+            </button>
         </div>
 
-        <nav class="nav-menu">
-            <ul id="navLinks">
-                <li><a href="dashboard-resident.html">Dashboard</a></li>
-                <li><a href="notifications.html">Notifications</a></li>
-            </ul>
-        </nav>
-
-        <div class="content-section">
-            <h2>Inbox</h2>
-            <div id="alert-container"></div>
-
-            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-                <div class="form-group" style="min-width:220px; margin:0;">
-                    <label for="limitSelect">Show</label>
-                    <select id="limitSelect">
-                        <option value="10">10</option>
-                        <option value="20" selected>20</option>
-                        <option value="50">50</option>
-                    </select>
-                </div>
-                <button class="btn btn-small btn-inline" id="reloadBtn" type="button">Reload</button>
-                <div style="font-size:12px; color:#6c757d;">Tip: Click “Mark as read” to clear unread badges.</div>
-            </div>
-
-            <div id="notificationsContainer" style="margin-top: 14px; display:grid; gap: 12px;">
-                <div class="placeholder">Loading...</div>
-            </div>
+        <div id="notificationsContainer">
+            <!-- Loading Skeletons via JS -->
         </div>
     </div>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
     <script>
-        let currentUser;
+        // Use a Set to track reading state locally for fast UI updates without full refetch immediately
+        let markingInProgress = new Set();
 
-        window.addEventListener('DOMContentLoaded', async () => {
-            currentUser = await checkAuthStatus();
-            if (!currentUser) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
+        const getNotifIcon = (type) => {
+            const map = {
+                'reminder': '📅',
+                'status_update': '🔔',
+                'system': '⚙️',
+                'welcome': '🎉'
+            };
+            return map[type] || '🔔';
+        };
 
-            renderNav(currentUser.role);
+        const timeAgo = (dateStr) => {
+            const d = new Date(dateStr);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - d) / 1000);
 
-            document.getElementById('reloadBtn').addEventListener('click', loadNotifications);
-            document.getElementById('limitSelect').addEventListener('change', loadNotifications);
+            if (diffInSeconds < 60) return 'Just now';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+            if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+            return d.toLocaleDateString();
+        };
 
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user) { window.location.href = 'login.html'; return; }
             await loadNotifications();
         });
 
-        function renderNav(role) {
-            const ul = document.getElementById('navLinks');
-            if (!ul) return;
-
-            let dash = 'dashboard-resident.html';
-            if (role === 'admin') dash = 'dashboard-admin.html';
-            if (role === 'collector') dash = 'dashboard-collector.html';
-
-            ul.innerHTML = `
-                <li><a href="${dash}">← Back to Dashboard</a></li>
-                <li><a href="notifications.html">Notifications</a></li>
-            `;
-        }
-
         async function loadNotifications() {
-            const container = document.getElementById('notificationsContainer');
-            const limit = document.getElementById('limitSelect').value || '20';
-            container.innerHTML = '<div class="placeholder">Loading...</div>';
+            const c = document.getElementById('notificationsContainer');
+            showSkeletonList(c, 5, 'row');
 
             try {
-                const resp = await fetch(`/api/notifications?limit=${encodeURIComponent(limit)}`, { credentials: 'include' });
-                const data = await resp.json();
+                const res = await apiFetch('/api/notifications?limit=30');
+                const items = res.data || [];
 
-                if (!resp.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load notifications');
-                }
-
-                const items = data.data || [];
                 if (items.length === 0) {
-                    container.innerHTML = '<div class="placeholder">No notifications yet.</div>';
+                    c.innerHTML = `
+                        <div class="empty-state">
+                            <img src="../assets/mascot3.png" class="mascot mascot-sm mb-3">
+                            <h3 style="margin-bottom:4px;">All caught up!</h3>
+                            <p class="text-muted text-sm">You have no new notifications right now.</p>
+                        </div>
+                    `;
                     return;
                 }
 
-                container.innerHTML = items.map(n => {
-                    const sentAt = n.sent_at ? new Date(n.sent_at).toLocaleString() : '';
-                    const badge = n.is_read ? '<span class="badge badge-read">Read</span>' : '<span class="badge badge-unread">Unread</span>';
-                    const btn = n.is_read ? '' : `<button class="btn btn-small btn-inline btn-secondary" onclick="markRead(${n.notification_id})">Mark as read</button>`;
+                c.innerHTML = items.map(n => renderNotification(n)).join('');
+            } catch (e) {
+                c.innerHTML = `
+                    <div class="empty-state">
+                        <img src="../assets/mascot4.png" class="mascot mascot-sm mb-3">
+                        <p class="text-muted">Failed to load notifications.</p>
+                    </div>
+                `;
+            }
 
-                    return `
-                        <div class="notif-card">
-                            <div class="notif-meta">
-                                <div>
-                                    <span class="notif-type">${escapeHtml(n.notification_type || 'system')}</span>
-                                    &nbsp;${badge}
-                                </div>
-                                <div>${escapeHtml(sentAt)}</div>
-                            </div>
-                            <div class="notif-message">${escapeHtml(n.message || '')}</div>
-                            <div class="notif-actions">${btn}</div>
+            // Re-bind sidebar bell count if it exists in the shell
+            if (window.updateNotificationCount) window.updateNotificationCount();
+        }
+
+        function renderNotification(n) {
+            const isRead = n.is_read || markingInProgress.has(n.notification_id);
+            const icon = getNotifIcon(n.notification_type);
+            const typeLabel = (n.notification_type || 'Notification').replace('_', ' ');
+            const cardClass = isRead ? 'nm-flat' : 'nm-raised unread';
+
+            // We'll auto mark as read when clicked
+            return `
+                <div class="notif-card ${cardClass}" onclick="handleNotifClick(${n.notification_id}, ${isRead}, this)">
+                    <div class="notif-icon-circle">${icon}</div>
+                    <div class="notif-content">
+                        <div class="notif-header">
+                            <div class="notif-title">${typeLabel}</div>
+                            <div class="notif-time">${timeAgo(n.sent_at)}</div>
                         </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                console.error(err);
-                showAlert('Error loading notifications. Please try again.', 'error');
-                container.innerHTML = '<div class="placeholder">Error loading notifications.</div>';
-            }
+                        <div class="notif-message">${n.message}</div>
+                    </div>
+                </div>
+            `;
         }
 
-        async function markRead(id) {
+        async function handleNotifClick(id, alreadyRead, el) {
+            if (alreadyRead) return;
+
+            // Optimistic UI update
+            markingInProgress.add(id);
+            el.classList.remove('nm-raised', 'unread');
+            el.classList.add('nm-flat');
+            const iconCircle = el.querySelector('.notif-icon-circle');
+            if (iconCircle) {
+                iconCircle.style.background = 'var(--bg-surface)';
+                iconCircle.style.color = 'var(--text-primary)';
+            }
+
+            // Background network call
             try {
-                const resp = await fetch(`/api/notifications/${id}/read`, {
-                    method: 'POST',
-                    credentials: 'include'
-                });
-                const data = await resp.json();
-                if (!resp.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to mark as read');
-                }
-                await loadNotifications();
-            } catch (err) {
-                console.error(err);
-                showAlert('Failed to update notification.', 'error');
-            }
+                await apiFetch(`/api/notifications/${id}/read`, { method: 'POST' });
+                if (window.updateNotificationCount) window.updateNotificationCount();
+            } catch (e) { }
         }
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            if (!alertContainer) return;
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
-        }
+        async function markAllRead() {
+            const unreadCards = document.querySelectorAll('.notif-card.unread');
+            if (unreadCards.length === 0) return;
 
-        function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            unreadCards.forEach(el => {
+                el.classList.remove('nm-raised', 'unread');
+                el.classList.add('nm-flat');
+                const ic = el.querySelector('.notif-icon-circle');
+                if (ic) { ic.style.background = 'var(--bg-surface)'; ic.style.color = ''; }
+            });
+
+            try {
+                // Fetch all remaining unread and mark loop if a bulk endpoint isn't available
+                // Based on API, there isn't a specific mark-all, so we'll fetch unread and map over them, or we can just reload after a bit.
+                const res = await apiFetch('/api/notifications?limit=50');
+                const unreadIds = (res.data || []).filter(n => !n.is_read).map(n => n.notification_id);
+
+                await Promise.all(unreadIds.map(id => apiFetch(`/api/notifications/${id}/read`, { method: 'POST' })));
+
+                showToast('All caught up!', 'success');
+                if (window.updateNotificationCount) window.updateNotificationCount();
+            } catch (e) { }
         }
     </script>
 </body>
+
 </html>

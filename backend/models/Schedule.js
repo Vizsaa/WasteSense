@@ -21,8 +21,31 @@ class Schedule {
       WHERE s.location_id = ? AND s.is_active = TRUE
       ORDER BY s.collection_day
     `;
-    
+
     const [rows] = await db.query(sql, [locationId]);
+    return rows;
+  }
+
+  /**
+   * Get all schedules (admin only)
+   * @returns {Promise<Array>} Array of ALL schedule objects
+   */
+  static async getAll() {
+    const sql = `
+      SELECT 
+        s.*,
+        wc.category_key AS waste_type,
+        wc.display_name AS waste_category_name,
+        l.barangay_name,
+        l.municipality,
+        l.province
+      FROM schedules s
+      LEFT JOIN waste_categories wc ON s.waste_category_id = wc.category_id
+      LEFT JOIN locations l ON s.location_id = l.location_id
+      ORDER BY s.collection_day
+    `;
+
+    const [rows] = await db.query(sql);
     return rows;
   }
 
@@ -47,7 +70,7 @@ class Schedule {
       WHERE u.user_id = ? AND s.is_active = TRUE
       ORDER BY s.collection_day
     `;
-    
+
     const [rows] = await db.query(sql, [userId]);
     return rows;
   }
@@ -83,37 +106,37 @@ class Schedule {
           WHEN 'Sunday' THEN 7
         END
     `;
-    
+
     const [rows] = await db.query(sql, [userId]);
-    
+
     // Calculate next dates for each schedule
     const today = new Date();
     const todayDay = today.toLocaleDateString('en-US', { weekday: 'long' });
     const result = rows.map(schedule => {
       let nextDate = new Date(today);
-      
+
       // Find the next occurrence of the collection day
       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const currentDayIndex = daysOfWeek.indexOf(todayDay);
       const targetDayIndex = daysOfWeek.indexOf(schedule.collection_day);
-      
+
       let daysUntilTarget = targetDayIndex - currentDayIndex;
       if (daysUntilTarget < 0) {
         daysUntilTarget += 7; // Next week
       }
-      
+
       nextDate.setDate(today.getDate() + daysUntilTarget);
-      
+
       return {
         ...schedule,
         next_collection_date: nextDate.toISOString().split('T')[0],
         next_collection_datetime: nextDate
       };
     });
-    
+
     // Sort by next collection date
     result.sort((a, b) => new Date(a.next_collection_datetime) - new Date(b.next_collection_datetime));
-    
+
     return result;
   }
 

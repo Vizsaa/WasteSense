@@ -40,6 +40,7 @@ router.post('/logout', authController.logout);
 router.post('/password-request', passwordResetController.createRequest);
 router.get('/password-request/status', passwordResetController.getStatusByEmail);
 router.post('/password-reset', passwordResetController.resetApprovedPassword);
+router.post('/set-new-password', authController.setNewPassword);
 
 // Admin-only password reset request management
 router.get('/password-requests', requireAuth, requireAdmin, passwordResetController.listRequests);

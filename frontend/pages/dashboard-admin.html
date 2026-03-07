@@ -1,234 +1,457 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .quick-action-card {
+            background: var(--bg-inset);
+            padding: var(--space-4);
+            border-radius: var(--radius-md);
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-primary);
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            height: 100%;
+        }
+
+        .quick-action-card:hover {
+            background: rgba(110, 224, 0, 0.05);
+            border-color: var(--brand-lime);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-action-icon {
+            font-size: 2.5rem;
+            opacity: 0.9;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-card:hover .quick-action-icon {
+            transform: scale(1.1);
+        }
+
+        .request-card {
+            display: flex;
+            flex-direction: column;
+            padding: var(--space-4);
+            margin-bottom: var(--space-3);
+            border-left: 4px solid var(--text-muted);
+            background: var(--bg-raised);
+            border-radius: var(--radius-md);
+        }
+
+        .request-card.urgent {
+            border-left-color: var(--status-warning);
+            background: rgba(253, 126, 20, 0.05);
+            /* Orange tint */
+        }
+
+        .request-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--space-2);
+        }
+
+        @media (max-width: 640px) {
+            .request-header {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
-    
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Welcome, <span id="userName">Administrator</span>!</h1>
-            <p>Quickly see system health, then jump into schedules, users, or analytics.</p>
-        </div>
-        
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="admin-submissions.html">Submissions</a></li>
-                <li><a href="admin-schedules.html">Manage Schedules</a></li>
-                <li><a href="admin-users.html">Manage Users</a></li>
-                <li><a href="admin-analytics.html">Analytics</a></li>
-                <li><a href="admin-locations.html">Locations</a></li>
-                <li><a href="admin-categories.html">Waste Categories</a></li>
-                <li><a href="admin-performance.html">Performance</a></li>
-                <li><a href="admin-feedback.html">Feedback</a></li>
-                <li><a href="notifications.html">Notifications</a></li>
-                <li><a href="profile.html">Profile</a></li>
-            </ul>
-        </nav>
 
-        <div class="content-section">
-            <h2>System Overview</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
-                <div class="stat-card">
-                    <div class="stat-label">Pending Submissions</div>
-                    <div class="stat-value" id="adminPendingCount">–</div>
-                    <div class="stat-sub">Requests waiting to be accepted or scheduled.</div>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Hero Section -->
+        <div class="nm-flat mb-5" style="padding:var(--space-6); position:relative; overflow:hidden;">
+            <div
+                style="position:absolute; top:-50px; right:5%; width:250px; height:250px; background:radial-gradient(circle, rgba(110,224,0,0.15) 0%, transparent 70%); border-radius:50%; pointer-events:none;">
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between position-relative z-10"
+                style="flex-wrap:wrap; gap:20px;">
+                <div class="d-flex align-items-center gap-4">
+                    <img id="adminMascotHero" src="../assets/mascot3.png" alt="Admin Mascot" class="mascot mascot-lg">
+                    <div>
+                        <h1 style="margin-bottom:var(--space-1);">System Overview</h1>
+                        <p class="text-secondary" style="font-size:var(--text-md); margin:0;">Welcome back, <span
+                                id="userName" class="text-lime fw-700">Admin</span>.</p>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Assigned Pickups</div>
-                    <div class="stat-value" id="adminAssignedCount">–</div>
-                    <div class="stat-sub">Submissions already assigned to collectors.</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Registered Users</div>
-                    <div class="stat-value" id="adminUserCount">–</div>
-                    <div class="stat-sub">Residents, collectors, and admins.</div>
+
+                <div class="d-flex gap-2">
+                    <a href="admin-submissions.html" class="btn btn-secondary"
+                        style="background:var(--bg-inset); border:1px solid rgba(255,255,255,0.1);">📝 Submissions</a>
+                    <a href="admin-users.html" class="btn gradient-brand text-dark">👥 Manage Users</a>
                 </div>
             </div>
         </div>
-        
-        <div class="content-section">
-            <h2>Password Reset Notifications</h2>
-            <p style="font-size: 13px; color:#6c757d; margin-bottom: 10px;">
-                These are pending password change requests submitted from the login page.
-            </p>
-            <table class="locations-table table-small">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Requested At</th>
-                        <th>Description</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="passwordRequestsBody">
-                    <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="content-section">
-            <h2>Manage Barangays/Locations</h2>
-            <p>Add and manage barangays/villages for waste collection scheduling.</p>
-            <a href="admin-locations.html" class="btn" style="margin-top: 15px; display: inline-block;">Manage Locations</a>
-        </div>
-        
-        <div class="content-section">
-            <h2>User Management</h2>
-            <div class="placeholder">
-                Manage user accounts, roles, and permissions.
+
+        <!-- Uncovered Barangays Warning Banner -->
+        <div id="uncoveredBarangayBanner"
+            style="display:none; background: rgba(253, 126, 20, 0.1); border: 1px solid var(--status-warning); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4);">
+            <div class="d-flex align-items-center gap-3">
+                <div style="color: var(--status-warning); font-size: 24px;">⚠</div>
+                <div>
+                    <h4 style="margin:0; color: var(--status-warning);">Uncovered Barangays Detected</h4>
+                    <p style="margin:4px 0 0 0; font-size: 13px; color: var(--text-secondary);"
+                        id="uncoveredBarangayText">
+                        Loading...
+                    </p>
+                </div>
             </div>
         </div>
-        
-        <div class="content-section">
-            <h2>Analytics & Reports</h2>
-            <div class="placeholder">
-                View collection performance metrics, waste volume data, and generate reports.
+
+        <!-- 4 Stat Cards -->
+        <div
+            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:var(--space-4); margin-bottom:var(--space-6);">
+            <!-- Pending -->
+            <div class="nm-raised custom-radius" style="padding:var(--space-4); position:relative; overflow:hidden;">
+                <div
+                    style="position:absolute; bottom:-10px; right:-10px; font-size:4rem; opacity:0.05; pointer-events:none;">
+                    ⏳</div>
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:1px;">
+                    Pending Approval</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--status-warning);" id="adminPendingCount">-
+                </div>
+            </div>
+
+            <!-- Assigned -->
+            <div class="nm-raised custom-radius" style="padding:var(--space-4); position:relative; overflow:hidden;">
+                <div
+                    style="position:absolute; bottom:-10px; right:-10px; font-size:4rem; opacity:0.05; pointer-events:none;">
+                    🚛</div>
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:1px;">In
+                    Progress / Assigned</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--brand-emerald);" id="adminAssignedCount">-
+                </div>
+            </div>
+
+            <!-- Collected -->
+            <div class="nm-raised custom-radius" style="padding:var(--space-4); position:relative; overflow:hidden;">
+                <div
+                    style="position:absolute; bottom:-10px; right:-10px; font-size:4rem; opacity:0.05; pointer-events:none;">
+                    ✅</div>
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:1px;">
+                    Total Collected</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--status-info);" id="adminCollectedCount">-
+                </div>
+            </div>
+
+            <!-- Users -->
+            <div class="nm-raised custom-radius" style="padding:var(--space-4); position:relative; overflow:hidden;">
+                <div
+                    style="position:absolute; bottom:-10px; right:-10px; font-size:4rem; opacity:0.05; pointer-events:none;">
+                    👥</div>
+                <div class="text-secondary mb-2"
+                    style="font-weight:600; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:1px;">
+                    Registered Users</div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--text-primary);" id="adminUserCount">-</div>
             </div>
         </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:var(--space-5);">
+            <!-- Admin Quick Actions Grid -->
+            <div>
+                <h2 style="font-size:var(--text-xl); margin-bottom:var(--space-4);">Management Directories</h2>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3);">
+                    <a href="admin-locations.html" class="quick-action-card">
+                        <div class="quick-action-icon">🗺️</div>
+                        <div style="font-weight:700; font-size:var(--text-sm);">Locations</div>
+                    </a>
+
+                    <a href="admin-categories.html" class="quick-action-card">
+                        <div class="quick-action-icon">🏷️</div>
+                        <div style="font-weight:700; font-size:var(--text-sm);">Categories</div>
+                    </a>
+
+                    <a href="admin-analytics.html" class="quick-action-card">
+                        <div class="quick-action-icon">📊</div>
+                        <div style="font-weight:700; font-size:var(--text-sm);">Analytics</div>
+                    </a>
+
+                    <a href="admin-performance.html" class="quick-action-card">
+                        <div class="quick-action-icon">⭐</div>
+                        <div style="font-weight:700; font-size:var(--text-sm);">Performance</div>
+                    </a>
+
+                    <a href="admin-feedback.html" class="quick-action-card">
+                        <div class="quick-action-icon">💬</div>
+                        <div style="font-weight:700; font-size:var(--text-sm);">Resident Feedback</div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Account Requests Feed -->
+            <div>
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <h2 style="font-size:var(--text-xl); margin:0;">Account Requests</h2>
+                    <span class="badge badge-pending" id="requestBadge">Loading</span>
+                </div>
+
+                <div id="passwordRequestsBody" style="max-height: 400px; overflow-y:auto; padding-right:10px;">
+                    <!-- Inserted via JS -->
+                </div>
+            </div>
+        </div>
+
     </div>
-    
-    <script src="../js/auth.js"></script>
-    <script>
-        // Check authentication and load user data
-        window.addEventListener('DOMContentLoaded', async () => {
-            const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
-            
-            // Verify user is an admin
-            if (user.role !== 'admin') {
-                alert('Access denied. This page is for administrators only.');
-                window.location.href = '/pages/login.html';
-                return;
-            }
-            
-            // Display user name
-            document.getElementById('userName').textContent = user.full_name || 'Administrator';
 
-            // Load overview metrics
-            await Promise.all([
-                loadAdminPending(),
-                loadAdminAssigned(),
-                loadAdminUsers(),
-                loadPasswordRequests()
+    <!-- Modals and scripts -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuthStatus();
+            if (!user || user.role !== 'admin') {
+                window.location.href = 'login.html'; return;
+            }
+
+            document.getElementById('userName').textContent = user.full_name?.split(' ')[0] || 'Admin';
+
+            // Initial load of stats & request queue
+            Promise.allSettled([
+                loadStats(),
+                loadPasswordRequests(),
+                fetchUncoveredBarangays()
             ]);
+
+            setInterval(fetchUncoveredBarangays, 120000);
         });
 
-        async function loadAdminPending() {
+        async function fetchUncoveredBarangays() {
             try {
-                const response = await fetch('/api/waste/pending', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error();
-                const submissions = data.data || [];
-                document.getElementById('adminPendingCount').textContent = submissions.length;
-            } catch {
-                document.getElementById('adminPendingCount').textContent = '–';
+                const res = await apiFetch('/api/admin/barangay-coverage');
+                const banner = document.getElementById('uncoveredBarangayBanner');
+                const textElem = document.getElementById('uncoveredBarangayText');
+                if (res.status === 'success' && res.data && res.data.length > 0) {
+                    banner.style.display = 'block';
+                    const names = res.data.map(d => `<strong>${escapeHtml(d.barangay_name)}</strong> (${parseInt(d.pending_submissions)} pending)`).join(', ');
+                    textElem.innerHTML = `The following barangays have pending waste submissions but no assigned collectors: ${names}. <a href="admin-users.html" style="color:var(--status-warning); text-decoration:underline;">Assign collectors now</a>.`;
+                } else {
+                    banner.style.display = 'none';
+                }
+            } catch (e) {
+                console.error('Failed to fetch barangay coverage');
             }
         }
 
-        async function loadAdminAssigned() {
+        async function loadStats() {
             try {
-                const response = await fetch('/api/waste/assigned', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error();
-                const submissions = data.data || [];
-                document.getElementById('adminAssignedCount').textContent = submissions.length;
-            } catch {
-                document.getElementById('adminAssignedCount').textContent = '–';
-            }
-        }
+                // We can run these concurrently to populate the cards
+                const [pending, assigned, users, allSub] = await Promise.all([
+                    apiFetch('/api/waste/pending'),
+                    apiFetch('/api/waste/assigned'),
+                    apiFetch('/api/users'),
+                    apiFetch('/api/waste/all')
+                ]);
 
-        async function loadAdminUsers() {
-            try {
-                const response = await fetch('/api/users', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') throw new Error();
-                const users = data.data || [];
-                document.getElementById('adminUserCount').textContent = users.length;
-            } catch {
-                document.getElementById('adminUserCount').textContent = '–';
+                document.getElementById('adminPendingCount').textContent = (pending.data || []).length;
+                document.getElementById('adminAssignedCount').textContent = (assigned.data || []).length;
+                document.getElementById('adminUserCount').textContent = (users.data || []).length;
+
+                const collected = (allSub.data || []).filter(s => s.collection_status === 'collected').length;
+                document.getElementById('adminCollectedCount').textContent = collected;
+
+            } catch (error) {
+                // Default placeholders remain '-'
+                console.warn('Stats load failed');
             }
         }
 
         async function loadPasswordRequests() {
-            const tbody = document.getElementById('passwordRequestsBody');
+            const container = document.getElementById('passwordRequestsBody');
+            showSkeletonList(container, 3, 'card');
+
             try {
-                const resp = await fetch('/api/auth/password-requests', { credentials: 'include' });
-                const data = await resp.json();
-                if (!resp.ok || data.status !== 'success') throw new Error();
-                const rows = data.data || [];
+                const res = await apiFetch('/api/auth/password-requests');
+                const rows = res.data || [];
+
+                document.getElementById('requestBadge').textContent = `${rows.length} Action${rows.length !== 1 ? 's' : ''} Needed`;
+                document.getElementById('requestBadge').className = rows.length > 0 ? 'badge badge-unread' : 'badge badge-read';
+
                 if (rows.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No pending requests.</td></tr>';
+                    container.innerHTML = `
+                        <div style="text-align:center; padding:var(--space-6) var(--space-4); background:var(--bg-inset); border-radius:var(--radius-md);">
+                            <div style="font-size:2rem; opacity:0.5; margin-bottom:8px;">✅</div>
+                            <div class="text-secondary" style="font-size:var(--text-sm);">Inbox zero. No pending account requests.</div>
+                        </div>`;
                     return;
                 }
-                tbody.innerHTML = rows.map(r => `
-                    <tr>
-                        <td>${r.email}</td>
-                        <td>${r.created_at ? new Date(r.created_at).toLocaleString() : ''}</td>
-                        <td style="max-width:260px; font-size:13px;">
-                            ${escapeHtml((r.description || '').slice(0, 120))}${(r.description || '').length > 120 ? '…' : ''}
-                        </td>
-                        <td>
-                            <button class="btn btn-small" onclick="viewRequest(${r.request_id})">View</button>
-                            <button class="btn btn-secondary btn-small" onclick="updateRequest(${r.request_id}, 'accepted')">Accept</button>
-                            <button class="btn btn-secondary btn-small" onclick="updateRequest(${r.request_id}, 'denied')">Deny</button>
-                        </td>
-                    </tr>
-                `).join('');
+
+                container.innerHTML = rows.map(r => {
+                    let badgeLabel = '🔑 Password Reset';
+                    let badgeStyle = 'background:rgba(239, 68, 68, 0.1); color:var(--status-denied); border:1px solid var(--status-denied);';
+                    let extraInfo = '';
+                    let isUrgent = false;
+
+                    switch (r.request_type) {
+                        case 'forgot_password':
+                            badgeLabel = '🔑 Password Reset';
+                            badgeStyle = 'background:rgba(239, 68, 68, 0.1); color:var(--status-denied); border:1px solid var(--status-denied);';
+                            break;
+                        case 'become_collector':
+                            badgeLabel = '🚛 Collector Role Request';
+                            badgeStyle = 'background:rgba(16, 185, 129, 0.1); color:var(--brand-emerald); border:1px solid var(--brand-emerald);';
+                            break;
+                        case 'request_admin_access':
+                            badgeLabel = '⚠️ Admin Access Request';
+                            badgeStyle = 'background:rgba(253, 126, 20, 0.1); color:var(--status-warning); border:1px solid var(--status-warning);';
+                            isUrgent = true;
+                            extraInfo = `<div style="background:rgba(253, 126, 20, 0.1); border-left:2px solid var(--status-warning); padding:8px; font-size:11px; margin-top:8px; color:var(--text-secondary);"><strong>Security Warning:</strong> This will grant root-level system access. Please verify out-of-band.</div>`;
+                            break;
+                        case 'reactivate_account':
+                            badgeLabel = '🔓 Reactivate Account';
+                            badgeStyle = 'background:rgba(59, 130, 246, 0.1); color:var(--brand-blue); border:1px solid var(--brand-blue);';
+                            break;
+                        case 'update_email':
+                            badgeLabel = '✉️ Email Change';
+                            let metaObj = {};
+                            try { metaObj = JSON.parse(r.metadata || '{}'); } catch (e) { }
+                            extraInfo = `<div class="text-secondary" style="font-size:11px; margin-top:4px;">Requested New Email: <strong>${metaObj.new_email || 'Unknown'}</strong></div>`;
+                            break;
+                    }
+
+                    return `
+                        <div class="request-card ${isUrgent ? 'urgent' : ''}">
+                            <div class="request-header">
+                                <div>
+                                    <span style="display:inline-block; padding:3px 8px; border-radius:var(--radius-pill); font-size:10px; font-weight:700; ${badgeStyle} margin-bottom:8px;">${badgeLabel}</span>
+                                    <div style="font-weight:600; font-size:var(--text-sm); margin-bottom:4px;">${escapeHtml(r.email)}</div>
+                                    <div style="font-size:11px; color:var(--text-muted);">${new Date(r.created_at).toLocaleString()}</div>
+                                </div>
+                                <div class="d-flex gap-2" style="margin-top:4px;">
+                                    <button class="btn btn-ghost" style="padding:6px; font-size:16px; width:32px; height:32px; display:flex; align-items:center; justify-content:center;" onclick="handleDenyRequest(${r.request_id}, '${r.request_type}', '${escapeHtml(r.full_name || 'User')}')" title="Deny Request">✖</button>
+                                    <button class="btn gradient-brand text-dark" style="padding:6px; font-size:16px; width:32px; height:32px; display:flex; align-items:center; justify-content:center;" onclick="handleAcceptRequest(${r.request_id}, '${r.request_type}', '${escapeHtml(r.full_name || 'User')}', '${escapeHtml(r.email)}', decodeURIComponent('${encodeURIComponent(r.metadata || '{}')}'))" title="Approve Request">✓</button>
+                                </div>
+                            </div>
+                            
+                            <div style="font-size:12px; color:var(--text-secondary); background:rgba(0,0,0,0.2); padding:var(--space-2); border-radius:var(--radius-sm); margin-top:var(--space-2);">
+                                <strong>Notes:</strong> ${escapeHtml(r.description) || '<em style="opacity:0.5;">None provided.</em>'}
+                            </div>
+                            ${extraInfo}
+                        </div>
+                    `;
+                }).join('');
+
             } catch (err) {
-                console.error(err);
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Error loading requests.</td></tr>';
+                container.innerHTML = `<div class="text-muted p-4 text-center">Failed to load requests.</div>`;
             }
         }
 
-        async function updateRequest(id, action) {
-            const ok = confirm(`Are you sure you want to ${action} this request?`);
-            if (!ok) return;
-            try {
-                const resp = await fetch(`/api/auth/password-requests/${id}/${action === 'accepted' ? 'accept' : 'deny'}`, {
-                    method: 'POST',
-                    credentials: 'include'
-                });
-                const data = await resp.json();
-                if (!resp.ok || data.status !== 'success') {
-                    alert(data.message || 'Failed to update request.');
+        function handleAcceptRequest(requestId, requestType, userFullName, userEmail, metadataStr) {
+            let metadata = {};
+            try { metadata = JSON.parse(metadataStr); } catch (e) { }
+            const newEmail = metadata?.new_email || null;
+
+            const configs = {
+                forgot_password: {
+                    type: 'confirm', icon: '🔑', iconBg: 'var(--brand-lime)',
+                    title: 'Reset Password',
+                    body: `This will flag <strong>${userEmail}</strong>'s account for a forced password change. They will be prompted to set a new password the next time they log in.`,
+                    detail: 'Their current password will still work until they log in again.',
+                    confirmLabel: 'Yes, Reset Password', confirmClass: 'btn-primary', cancelLabel: 'Cancel'
+                },
+                become_collector: {
+                    type: 'confirm', icon: '🚛', iconBg: '#00ACC1',
+                    title: 'Change Role to Collector?',
+                    body: `This will change <strong>${userFullName}</strong> (<code>${userEmail}</code>) from <strong>Resident</strong> to <strong>Collector</strong>.`,
+                    detail: 'They will lose Resident access and gain Collector access immediately.',
+                    confirmLabel: 'Yes, Make Collector', confirmClass: 'btn-teal', cancelLabel: 'Cancel'
+                },
+                request_admin_access: {
+                    type: 'warning', icon: '⚠️', iconBg: '#FF6F00',
+                    title: 'Grant Admin Access?',
+                    warningBanner: 'This is a high-privilege action. Admins have full control over all users, data, and system settings.',
+                    body: `You are about to grant full Admin access to <strong>${userFullName}</strong> (<code>${userEmail}</code>).`,
+                    detail: "Only proceed if you have independently verified this person's identity and authorization.",
+                    confirmLabel: 'I Understand — Grant Admin Access', confirmClass: 'btn-danger',
+                    requireTypedConfirm: true, typedConfirmPrompt: 'Type CONFIRM to proceed', typedConfirmValue: 'CONFIRM',
+                    cancelLabel: 'Cancel — Do Not Proceed'
+                },
+                reactivate_account: {
+                    type: 'confirm', icon: '🔓', iconBg: '#1565C0',
+                    title: 'Reactivate Account?',
+                    body: `This will reactivate the account for <strong>${userFullName}</strong> (<code>${userEmail}</code>).`,
+                    detail: 'They will be able to log in again immediately.',
+                    confirmLabel: 'Yes, Reactivate Account', confirmClass: 'btn-blue', cancelLabel: 'Cancel'
+                },
+                update_email: {
+                    type: 'confirm', icon: '✉️', iconBg: '#6A1B9A',
+                    title: 'Update Email Address?',
+                    body: `This will change <strong>${userFullName}</strong>'s email from <code>${userEmail}</code> to <code>${newEmail}</code>.`,
+                    detail: 'They will need to use the new email to log in.',
+                    confirmLabel: 'Yes, Update Email', confirmClass: 'btn-purple', cancelLabel: 'Cancel'
+                },
+                report_issue: {
+                    type: 'info', icon: '🐛', iconBg: '#00838F',
+                    title: 'Acknowledge Issue Report?',
+                    body: `Mark the issue report from <strong>${userFullName}</strong> as acknowledged.`,
+                    detail: 'No changes will be made to their account.',
+                    confirmLabel: 'Acknowledge Report', confirmClass: 'btn-cyan', cancelLabel: 'Dismiss'
                 }
-                await loadPasswordRequests();
-            } catch (err) {
-                console.error(err);
-                alert('Error updating request.');
-            }
+            };
+
+            const config = configs[requestType];
+            if (!config) return;
+
+            showConfirmDialog(config, async () => {
+                try {
+                    const res = await apiFetch(`/api/auth/password-requests/${requestId}/accept`, { method: 'POST' });
+                    if (res.status === 'success') {
+                        showToast('Request approved successfully.', 'success');
+                        await loadPasswordRequests();
+                    }
+                } catch (err) { }
+            });
         }
 
-        async function viewRequest(id) {
-            try {
-                const resp = await fetch('/api/auth/password-requests', { credentials: 'include' });
-                const data = await resp.json();
-                if (!resp.ok || data.status !== 'success') return;
-                const rows = data.data || [];
-                const r = rows.find(x => x.request_id === id);
-                if (!r) return;
-                alert(`Email: ${r.email}\n\nDescription:\n\n${r.description || ''}`);
-            } catch (err) {
-                console.error(err);
-            }
-        }
+        function handleDenyRequest(requestId, requestType, userFullName) {
+            const typeLabels = {
+                forgot_password: 'Password Reset',
+                become_collector: 'Role → Collector',
+                request_admin_access: 'Role → Admin',
+                reactivate_account: 'Account Reactivation',
+                update_email: 'Email Update',
+                report_issue: 'Issue Report'
+            };
 
-        function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            showConfirmDialog({
+                type: 'deny', icon: '✖️', iconBg: '#C62828',
+                title: 'Deny Request?',
+                body: `Deny the <strong>${typeLabels[requestType] || requestType}</strong> request from <strong>${userFullName}</strong>?`,
+                detail: 'The user will see their request marked as Denied.',
+                confirmLabel: 'Yes, Deny Request', confirmClass: 'btn-danger', cancelLabel: 'Cancel'
+            }, async () => {
+                try {
+                    const res = await apiFetch(`/api/auth/password-requests/${requestId}/deny`, { method: 'POST' });
+                    if (res.status === 'success') {
+                        showToast('Request denied successfully.', 'success');
+                        await loadPasswordRequests();
+                    }
+                } catch (err) { }
+            });
         }
     </script>
 </body>
+
 </html>

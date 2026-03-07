@@ -10,7 +10,7 @@ function normalizeEmail(email) {
  */
 const createRequest = async (req, res) => {
   try {
-    const { email, type, description } = req.body || {};
+    const { email, type, description, metadata } = req.body || {};
     const normalizedEmail = normalizeEmail(email);
 
     if (!normalizedEmail || !type) {
@@ -20,11 +20,45 @@ const createRequest = async (req, res) => {
       });
     }
 
-    if (type !== 'change_password') {
+    const validTypes = [
+      'forgot_password',
+      'become_collector',
+      'request_admin_access',
+      'reactivate_account',
+      'update_email',
+      'report_issue'
+    ];
+
+    if (!validTypes.includes(type)) {
       return res.status(400).json({
         status: 'error',
         message: 'Invalid request type'
       });
+    }
+
+    if (type === 'update_email') {
+      const newEmail = normalizeEmail(metadata?.new_email);
+      if (!newEmail) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'New email address is required'
+        });
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid new email format'
+        });
+      }
+
+      const existing = await User.findByEmail(newEmail);
+      if (existing) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'That email is already registered to another account.'
+        });
+      }
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,8 +85,9 @@ const createRequest = async (req, res) => {
     await PasswordResetRequest.create({
       user_id: user.user_id,
       email: normalizedEmail,
-      request_type: 'change_password',
-      description: safeDescription
+      request_type: type,
+      description: safeDescription,
+      metadata: metadata || null
     });
 
     return res.json({
@@ -91,7 +126,7 @@ const getStatusByEmail = async (req, res) => {
 
     return res.json({
       status: 'success',
-      data: { status: latest.status }
+      data: { status: latest.status, request_type: latest.request_type }
     });
   } catch (error) {
     console.error('Get password reset status error:', error);
@@ -140,7 +175,7 @@ const resetApprovedPassword = async (req, res) => {
     }
 
     const latest = await PasswordResetRequest.findLatestByEmail(normalizedEmail);
-    if (!latest || latest.request_type !== 'change_password') {
+    if (!latest || latest.request_type !== 'forgot_password') {
       return res.status(400).json({
         status: 'error',
         message: 'No approved password reset request found'
@@ -196,13 +231,75 @@ const listRequests = async (req, res) => {
   }
 };
 
-/**
- * Admin: accept request
- */
 const acceptRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated = await PasswordResetRequest.setStatus(id, 'accepted');
+    const request = await PasswordResetRequest.findById(id);
+
+    if (!request) {
+      return res.status(404).json({ status: 'error', message: 'Request not found' });
+    }
+
+    const db = require('../config/db.config'); // Ensure db is available here
+
+    switch (request.request_type) {
+      case 'forgot_password':
+        // Flag user to force password change on next login
+        await db.query(
+          "UPDATE users SET force_password_change = 1, updated_at = NOW() WHERE email = ?",
+          [request.email]
+        );
+        break;
+
+      // 2. become_collector - Requires admin approval
+      // ----------------------------------------------------------------------
+      case 'become_collector':
+        await db.query(
+          "UPDATE users SET role = 'collector', is_active = 1, updated_at = NOW() WHERE email = ?",
+          [request.email]
+        );
+        break;
+
+      // 3. request_admin_access - Requires admin approval and verification
+      // ----------------------------------------------------------------------
+      case 'request_admin_access':
+        await db.query(
+          "UPDATE users SET role = 'admin', updated_at = NOW() WHERE email = ?",
+          [request.email]
+        );
+        break;
+
+      case 'reactivate_account':
+        await db.query(
+          "UPDATE users SET is_active = 1, updated_at = NOW() WHERE email = ?",
+          [request.email]
+        );
+        break;
+
+      case 'update_email':
+        const meta = typeof request.metadata === 'string' ? JSON.parse(request.metadata) : request.metadata;
+        const newEmail = meta?.new_email;
+        if (newEmail) {
+          await db.query(
+            "UPDATE users SET email = ?, updated_at = NOW() WHERE email = ?",
+            [newEmail, request.email]
+          );
+        }
+        break;
+
+      case 'report_issue':
+        // No user data change needed
+        break;
+    }
+
+    // Mark as completed instead of just accepted if it's an action we automatically perform. 
+    // Except for forgot_password, which needs to remain 'accepted' for the user to finish the flow.
+    let newStatus = 'completed';
+    if (request.request_type === 'forgot_password') {
+      newStatus = 'accepted';
+    }
+
+    const updated = await PasswordResetRequest.setStatus(id, newStatus);
     res.json({
       status: 'success',
       message: 'Request accepted',

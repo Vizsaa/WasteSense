@@ -8,22 +8,24 @@ class User {
    * @returns {Promise<Object>} Created user object (without password)
    */
   static async create(userData) {
-    const { email, password, full_name, role, phone_number, address, barangay_id } = userData;
-    
+    const { email, password, full_name, role, phone_number, address, barangay_id, is_active } = userData;
+
     // Hash password
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
-    
+
+    const activeStatus = is_active !== undefined ? is_active : 1;
+
     const sql = `
-      INSERT INTO users (email, password_hash, full_name, role, phone_number, address, barangay_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (email, password_hash, full_name, role, phone_number, address, barangay_id, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
-    const params = [email, password_hash, full_name, role, phone_number || null, address || null, barangay_id || null];
-    
+
+    const params = [email, password_hash, full_name, role, phone_number || null, address || null, barangay_id || null, activeStatus];
+
     try {
       const result = await db.execute(sql, params);
-      return await this.findById(result.insertId);
+      return await this.findByIdAdmin(result.insertId);
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') {
         throw new Error('Email already exists');
@@ -102,12 +104,12 @@ class User {
   }
 
   /**
-   * Find user by email (active users only, used for login)
+   * Find user by email (for login, includes inactive so controller can handle them)
    * @param {string} email - User email
    * @returns {Promise<Object|null>} User object or null
    */
   static async findByEmail(email) {
-    const sql = 'SELECT * FROM users WHERE email = ? AND is_active = TRUE';
+    const sql = 'SELECT * FROM users WHERE email = ?';
     const [rows] = await db.query(sql, [email]);
     return rows.length > 0 ? rows[0] : null;
   }

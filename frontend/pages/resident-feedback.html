@@ -1,110 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feedback - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .feedback-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .feedback-hero {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+
+        .feedback-hero .mascot {
+            flex-shrink: 0;
+            width: 120px;
+        }
+
+        @media (max-width: 640px) {
+            .feedback-hero {
+                flex-direction: column;
+                text-align: center;
+                gap: var(--space-2);
+            }
+        }
+
+        .char-counter {
+            text-align: right;
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+    </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Send Feedback</h1>
-            <p>Share comments or suggestions to help improve WasteSense.</p>
-        </div>
+<body class="stagger-1">
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-resident.html">← Back to Dashboard</a></li>
-                <li><a href="my-submissions.html">My Submissions</a></li>
-                <li><a href="submit-waste.html">Submit Waste</a></li>
-            </ul>
-        </nav>
-
-        <div class="content-section">
-            <h2>Feedback Form</h2>
-            <div id="alert-container"></div>
-            <form id="feedbackForm">
-                <div class="form-group">
-                    <label for="feedbackMessage">Message</label>
-                    <textarea id="feedbackMessage" rows="6" placeholder="Write your feedback here..." required></textarea>
-                    <small style="color:#6c757d;">Max 2000 characters.</small>
+    <div class="main-content">
+        <div class="feedback-container">
+            <div class="feedback-hero">
+                <img src="../assets/mascot3.png" alt="Helpful Mascot" class="mascot">
+                <div>
+                    <h1 style="margin-bottom:var(--space-2);">Send Feedback</h1>
+                    <p class="text-secondary" style="font-size:var(--text-md); margin:0;">
+                        Share your comments, suggestions, or report issues to help improve WasteSense.
+                    </p>
                 </div>
-                <button type="submit" class="btn">Submit Feedback</button>
-            </form>
+            </div>
+
+            <div class="nm-raised custom-radius" style="padding:var(--space-6);">
+                <form id="feedbackForm">
+                    <div class="form-group mb-4">
+                        <label for="feedbackMessage" class="d-flex justify-content-between align-items-center">
+                            <span>Your Message</span>
+                        </label>
+                        <textarea id="feedbackMessage" name="message" class="nm-inset" rows="6" maxlength="2000"
+                            placeholder="Write your feedback here..." required></textarea>
+                        <div class="char-counter"><span id="charCount">0</span> / 2000</div>
+                    </div>
+
+                    <button type="submit" class="btn gradient-brand w-100" id="submitBtn">Send Feedback →</button>
+
+                    <div id="successState" style="display:none; text-align:center; padding:var(--space-4) 0;">
+                        <div style="font-size:3rem; margin-bottom:var(--space-2);">💚</div>
+                        <h3 style="margin-bottom:var(--space-2);">Thank You!</h3>
+                        <p class="text-secondary mb-4">Your feedback has been received and will be reviewed by our team.
+                        </p>
+                        <button type="button" class="btn btn-ghost" onclick="resetForm()">Send Another</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
-        window.addEventListener('DOMContentLoaded', async () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
+            if (!user || (user.role !== 'resident' && user.role !== 'admin')) {
+                window.location.href = 'login.html'; return;
             }
 
-            if (user.role !== 'resident' && user.role !== 'admin') {
-                alert('Access denied. Residents only.');
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            const textarea = document.getElementById('feedbackMessage');
+            const counter = document.getElementById('charCount');
 
-            document.getElementById('feedbackForm').addEventListener('submit', submitFeedback);
+            textarea.addEventListener('input', () => {
+                counter.textContent = textarea.value.length;
+            });
+
+            document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const msg = textarea.value.trim();
+                if (!msg) { showToast('Please enter a message', 'warning'); return; }
+
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = true;
+                btn.textContent = 'Sending...';
+
+                try {
+                    const res = await apiFetch('/api/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: msg })
+                    });
+
+                    if (res.status === 'success') {
+                        // Hide form elements, show success
+                        textarea.parentElement.style.display = 'none';
+                        btn.style.display = 'none';
+                        document.getElementById('successState').style.display = 'block';
+                    }
+                } catch (e) {
+                    btn.disabled = false;
+                    btn.textContent = 'Send Feedback →';
+                }
+            });
         });
 
-        async function submitFeedback(e) {
-            e.preventDefault();
-            const message = document.getElementById('feedbackMessage').value.trim();
-            if (!message) {
-                showAlert('Please enter your feedback message.', 'error');
-                return;
-            }
-            if (message.length > 2000) {
-                showAlert('Message is too long (max 2000 characters).', 'error');
-                return;
-            }
+        window.resetForm = function () {
+            const textarea = document.getElementById('feedbackMessage');
+            textarea.value = '';
+            document.getElementById('charCount').textContent = '0';
 
-            try {
-                const resp = await fetch('/api/feedback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ message })
-                });
-                const data = await resp.json();
+            textarea.parentElement.style.display = 'block';
+            const btn = document.getElementById('submitBtn');
+            btn.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Send Feedback →';
 
-                if (resp.ok && data.status === 'success') {
-                    showAlert('Thank you! Your feedback was submitted.', 'success');
-                    document.getElementById('feedbackForm').reset();
-                } else {
-                    showAlert(data.message || 'Failed to submit feedback.', 'error');
-                }
-            } catch (err) {
-                console.error(err);
-                showAlert('An error occurred while submitting feedback.', 'error');
-            }
-        }
-
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            if (!alertContainer) return;
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
-        }
-
-        function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            document.getElementById('successState').style.display = 'none';
         }
     </script>
 </body>
+
 </html>

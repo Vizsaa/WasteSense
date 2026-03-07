@@ -10,7 +10,7 @@ class PerformanceTracking {
       VALUES (?, ?, ?, ?, ?, ?)
     `;
     const params = [schedule_id, collector_id, planned_date, actual_date, status, notes];
-    const [result] = await db.execute(sql, params);
+    const result = await db.execute(sql, params);
     return this.findById(result.insertId);
   }
 

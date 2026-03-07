@@ -1,213 +1,348 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body.auth-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: var(--space-4);
+            background: var(--bg-base);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Decorative Background Blobs */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(110, 224, 0, 0.04);
+            z-index: 1;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            top: -150px;
+            left: -200px;
+        }
+
+        .blob-2 {
+            width: 600px;
+            height: 600px;
+            bottom: -200px;
+            right: -250px;
+        }
+
+        .register-card {
+            width: 100%;
+            max-width: 520px;
+            padding: var(--space-10);
+            z-index: 2;
+            position: relative;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .auth-header .brand-banner {
+            max-width: 260px;
+            margin: 0 auto;
+            margin-bottom: var(--space-3);
+        }
+
+        .auth-header .mascot {
+            margin-bottom: var(--space-2);
+        }
+
+        .auth-header h1 {
+            font-size: var(--text-2xl);
+            font-weight: 700;
+            margin-bottom: var(--space-2);
+        }
+
+        .auth-header p.subtitle {
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+        }
+
+        input,
+        select,
+        textarea {
+            height: 50px;
+        }
+
+        /* Password Strength Bar */
+        .pwd-strength-container {
+            height: 4px;
+            width: 100%;
+            background: var(--bg-inset);
+            border-radius: var(--radius-pill);
+            margin-top: -12px;
+            margin-bottom: var(--space-4);
+            overflow: hidden;
+        }
+
+        .pwd-strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s ease;
+            background: #666;
+            /* default grey */
+            border-radius: var(--radius-pill);
+        }
+
+        .pwd-strength-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: block;
+            text-align: right;
+        }
+
+        @media (max-width: 640px) {
+            .register-card {
+                padding: var(--space-6);
+            }
+        }
+    </style>
 </head>
-<body class="auth-page">
-    <div class="container">
-        <h1>WasteSense</h1>
-        <p class="subtitle">Create Your Account</p>
-        
-        <div id="alert-container"></div>
-        
+
+<body class="auth-page stagger-1">
+
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="register-card nm-raised custom-radius" style="border-radius: var(--radius-xl);">
+
+        <div class="auth-header">
+            <img src="../assets/banner.png" alt="WasteSense" class="brand-banner">
+            <img src="../assets/mascot3.png" alt="WasteSense Mascot" class="mascot mascot-md">
+
+            <h1 class="gradient-text">Create your account</h1>
+            <p class="subtitle">Join your community's waste management system</p>
+        </div>
+
         <form id="registerForm">
-            <div class="form-group">
-                <label for="full_name">Full Name</label>
-                <input type="text" id="full_name" name="full_name" required>
+            <div class="form-group mb-3">
+                <input type="text" id="full_name" name="full_name" class="nm-inset" placeholder="Full Name" required>
             </div>
-            
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required autocomplete="email">
+
+            <div class="form-group mb-3">
+                <input type="email" id="email" name="email" class="nm-inset" placeholder="Email Address" required
+                    autocomplete="email">
             </div>
-            
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required autocomplete="new-password" minlength="6">
-                <small style="color: #666; font-size: 12px;">Must be at least 6 characters</small>
+
+            <div class="form-group mb-3">
+                <input type="password" id="password" name="password" class="nm-inset" placeholder="Password" required
+                    autocomplete="new-password" minlength="6">
+                <!-- Strength Meter -->
+                <div style="margin-top:8px;">
+                    <div class="pwd-strength-container">
+                        <div class="pwd-strength-bar" id="pwdStrengthBar"></div>
+                    </div>
+                    <span class="pwd-strength-text" id="pwdStrengthText">Too Short</span>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="confirm_password">Confirm Password</label>
-                <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password">
+
+            <div class="form-group mb-4">
+                <input type="password" id="confirm_password" name="confirm_password" class="nm-inset"
+                    placeholder="Confirm Password" required autocomplete="new-password">
             </div>
-            
-            <div class="form-group">
-                <label for="phone_number">Phone Number (Optional)</label>
-                <input type="tel" id="phone_number" name="phone_number">
+
+            <div class="form-group mb-3">
+                <input type="tel" id="phone_number" name="phone_number" class="nm-inset"
+                    placeholder="Phone Number (Optional)">
             </div>
-            
-            <div class="form-group">
-                <label for="address">Address (Optional)</label>
-                <textarea id="address" name="address" rows="3"></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label for="barangay_id">Barangay / Village</label>
-                <select id="barangay_id" name="barangay_id">
-                    <option value="">Loading barangays...</option>
+
+            <div class="form-group mb-3">
+                <select id="role" name="role" class="nm-inset" required>
+                    <option value="resident" selected>Sign up as Resident</option>
+                    <option value="collector">Sign up as Waste Collector</option>
                 </select>
             </div>
-            
-            <button type="submit" class="btn">Register</button>
-            <button type="button" class="btn btn-secondary" style="margin-top: 10px;" onclick="handleCancel()">
-                Cancel / Go Back
-            </button>
+
+            <div class="form-group mb-4">
+                <select id="barangay_id" name="barangay_id" class="nm-inset" required>
+                    <option value="">Loading barangays...</option>
+                </select>
+                <div id="collectorNote" class="text-muted mt-2" style="font-size: 12px; display: none;">
+                    * Your working area will be confirmed by the admin after account approval.
+                </div>
+            </div>
+
+            <button type="submit" class="btn gradient-brand mb-3" id="registerSubmitBtn">Register Account</button>
+            <div id="registerErrorContainer" class="text-center mb-3" style="display:none;">
+                <img src="../assets/mascot4.png" alt="Error" class="mascot mascot-sm animate-shake">
+            </div>
         </form>
-        
-        <div class="link">
-            Already have an account? <a href="login.html">Login here</a>
+
+        <div class="text-center" style="margin-top:var(--space-6);">
+            <div class="text-muted" style="font-size:var(--text-sm); margin-bottom:var(--space-2);">Already have an
+                account?</div>
+            <a href="login.html" class="btn btn-ghost">Log In</a>
         </div>
     </div>
-    
+
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
     <script>
+        // Password Strength Logic
+        const pwdInput = document.getElementById('password');
+        const bar = document.getElementById('pwdStrengthBar');
+        const txt = document.getElementById('pwdStrengthText');
+
+        pwdInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            let score = 0;
+            if (val.length >= 6) score += 1;
+            if (val.length >= 10) score += 1;
+            if (/[A-Z]/.test(val)) score += 1;
+            if (/[0-9]/.test(val)) score += 1;
+            if (/[^A-Za-z0-9]/.test(val)) score += 1;
+
+            if (val.length === 0) {
+                bar.style.width = '0%';
+                txt.textContent = 'Enter Password';
+            } else if (val.length < 6) {
+                bar.style.width = '20%';
+                bar.style.backgroundColor = 'var(--text-muted)';
+                txt.textContent = 'Too Short';
+            } else if (score <= 2) {
+                bar.style.width = '40%';
+                bar.style.backgroundColor = 'var(--status-denied)'; // Red
+                txt.textContent = 'Weak';
+                txt.style.color = 'var(--status-denied)';
+            } else if (score <= 4) {
+                bar.style.width = '70%';
+                bar.style.backgroundColor = 'var(--status-pending)'; // Amber
+                txt.textContent = 'Good';
+                txt.style.color = 'var(--status-pending)';
+            } else {
+                bar.style.width = '100%';
+                bar.style.backgroundColor = 'var(--brand-lime)'; // Lime
+                txt.textContent = 'Strong';
+                txt.style.color = 'var(--brand-lime)';
+            }
+        });
+
         // Initialize page: check auth then load barangays
-        async function initPage() {
+        document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const user = await checkAuthStatus();
                 if (user && user.role) {
-                    // Allow admins to stay — they may be creating a new user
                     if (user.role !== 'admin') {
                         redirectByRole(user.role);
                         return;
                     }
                 }
-            } catch (e) {
-                console.warn('Auth check skipped:', e);
-            }
-            loadBarangays();
-        }
+            } catch (e) { }
 
-        // Robust init: works whether DOMContentLoaded already fired or not
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initPage);
-        } else {
-            initPage();
-        }
+            loadBarangays();
+        });
 
         async function loadBarangays() {
             const select = document.getElementById('barangay_id');
+            const btn = document.getElementById('registerSubmitBtn');
             try {
-                const response = await fetch('/api/locations');
-                if (response.ok) {
-                    const data = await response.json();
-                    select.innerHTML = '<option value="">Select barangay / village</option>';
-                    if (data.data && data.data.length > 0) {
-                        data.data.forEach(loc => {
-                            const option = document.createElement('option');
-                            option.value = loc.location_id;
-                            option.textContent = `${loc.barangay_name}, ${loc.municipality}`;
-                            select.appendChild(option);
-                        });
-                    }
+                const data = await apiFetch('/api/locations');
+                select.innerHTML = '<option value="">Select barangay / village *</option>';
+
+                const activeBarangays = (data.data || []).filter(loc => loc.is_active === 1);
+
+                if (activeBarangays.length > 0) {
+                    activeBarangays.forEach(loc => {
+                        const option = document.createElement('option');
+                        option.value = loc.location_id;
+                        option.textContent = `${loc.barangay_name}, ${loc.municipality}`;
+                        select.appendChild(option);
+                    });
                 } else {
-                    select.innerHTML = '<option value="">Could not load barangays</option>';
+                    select.innerHTML = '<option value="">No barangays available</option>';
+                    btn.disabled = true;
+                    showToast('No barangays are currently registered in WasteSense. Please contact your LGU admin.', 'error');
                 }
             } catch (error) {
-                console.error('Error loading barangays:', error);
                 select.innerHTML = '<option value="">Error loading barangays</option>';
             }
         }
 
-        // Handle registration form submission
+        const roleSelect = document.getElementById('role');
+        const collectorNote = document.getElementById('collectorNote');
+        if (roleSelect && collectorNote) {
+            roleSelect.addEventListener('change', (e) => {
+                collectorNote.style.display = e.target.value === 'collector' ? 'block' : 'none';
+            });
+            if (roleSelect.value === 'collector') collectorNote.style.display = 'block';
+        }
+
+        // Handle Form Submission
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
+            const btn = document.getElementById('registerSubmitBtn');
+            const errBox = document.getElementById('registerErrorContainer');
+            errBox.style.display = 'none';
 
             const formData = {
                 full_name: document.getElementById('full_name').value.trim(),
                 email: document.getElementById('email').value.trim(),
-                password: document.getElementById('password').value,
+                password: pwdInput.value,
                 confirm_password: document.getElementById('confirm_password').value,
-                role: 'resident',
+                role: document.getElementById('role').value,
                 phone_number: document.getElementById('phone_number').value.trim() || null,
-                address: document.getElementById('address').value.trim() || null,
+                address: null, // Removed from UI as requested to simplify forms, but can be passed null
                 barangay_id: document.getElementById('barangay_id').value || null
             };
 
-            // Client-side validation
-            if (!formData.full_name || !formData.email || !formData.password) {
-                showAlert('Please fill in all required fields', 'error');
-                return;
+            // Validations
+            if (!formData.full_name || !formData.email || !formData.password || !formData.barangay_id) {
+                showToast('Please fill in all required fields, including your barangay', 'warning'); return;
             }
-
             if (formData.password !== formData.confirm_password) {
-                showAlert('Passwords do not match', 'error');
-                return;
+                showToast('Passwords do not match', 'error'); return;
             }
-
             if (formData.password.length < 6) {
-                showAlert('Password must be at least 6 characters long', 'error');
-                return;
+                showToast('Password must be at least 6 characters long', 'error'); return;
             }
-
-            // Email validation
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(formData.email)) {
-                showAlert('Please enter a valid email address', 'error');
-                return;
+                showToast('Please enter a valid email address', 'error'); return;
             }
 
-            // Show loading state
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Registering...';
+            btn.disabled = true;
+            btn.textContent = 'Registering...';
 
             try {
-                const response = await fetch('/api/auth/register', {
+                const data = await apiFetch('/api/auth/register', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
-                const data = await response.json();
-
-                if (response.ok && data.status === 'success') {
-                    showAlert('Registration successful! Redirecting to login...', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'login.html';
-                    }, 2000);
-                } else {
-                    showAlert(data.message || 'Registration failed. Please try again.', 'error');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = originalText;
+                if (data.status === 'success') {
+                    showToast(data.message || 'Registration successful! Redirecting...', 'success');
+                    setTimeout(() => { window.location.href = 'login.html'; }, 3000);
                 }
             } catch (error) {
-                console.error('Registration error:', error);
-                showAlert('Connection error. Please check your network and try again.', 'error');
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
+                errBox.style.display = 'block';
+                const masc = errBox.querySelector('.mascot');
+                masc.style.animation = 'none';
+                setTimeout(() => masc.style.animation = '', 10);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Register Account';
             }
         });
-
-        function handleCancel() {
-            if (document.referrer && document.referrer.includes('admin-users.html')) {
-                window.location.href = 'admin-users.html';
-            } else if (document.referrer) {
-                history.back();
-            } else {
-                window.location.href = 'login.html';
-            }
-        }
-
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            if (type !== 'success') {
-                setTimeout(() => {
-                    alertContainer.innerHTML = '';
-                }, 5000);
-            }
-        }
     </script>
 </body>
+
 </html>

@@ -10,7 +10,7 @@ class Notification {
       VALUES (?, ?, ?, ?)
     `;
     const params = [user_id, schedule_id, notification_type, message];
-    const [result] = await db.execute(sql, params);
+    const result = await db.execute(sql, params);
     return await this.findById(result.insertId);
   }
 

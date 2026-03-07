@@ -1,319 +1,430 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collector Dashboard - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        /* Collector specific emerald overrides */
+        .stat-card.emerald {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .stat-card.emerald .stat-icon {
+            color: var(--brand-emerald);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .map-thumb {
+            height: 120px;
+            width: 100%;
+            background: var(--bg-inset);
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            z-index: 1;
+        }
+
+        .route-card {
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .route-content {
+            padding: var(--space-4);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Interactive Map Modal */
+        #mapModal {
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            padding: var(--space-4);
+        }
+
+        #mapModal.active {
+            display: flex;
+        }
+
+        #fullMapContainer {
+            flex: 1;
+            border-radius: var(--radius-lg);
+            background: var(--bg-inset);
+            overflow: hidden;
+            position: relative;
+        }
+    </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
-    
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Welcome, <span id="userName">Collector</span>!</h1>
-            <p>See today’s assigned pickups and upcoming collections in one place.</p>
-        </div>
-        
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="#routes">Today's Routes</a></li>
-                <li><a href="#schedule">Upcoming Collections</a></li>
-                <li><a href="collector-submissions.html">Waste Submissions</a></li>
-                <li><a href="notifications.html">Notifications</a></li>
-            </ul>
-        </nav>
 
-        <div class="content-section" id="collectorSummary">
-            <h2>Today at a Glance</h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
-                <div class="stat-card">
-                    <div class="stat-label">Stops Today</div>
-                    <div class="stat-value" id="collectorStopsToday">–</div>
-                    <div class="stat-sub">Scheduled pickups assigned to you for today.</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Upcoming Assignments</div>
-                    <div class="stat-value" id="collectorUpcomingCount">–</div>
-                    <div class="stat-sub">Future collections already assigned to you.</div>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Hero Section -->
+        <div class="nm-flat mb-5" style="padding:var(--space-6); position:relative; overflow:hidden;">
+            <div
+                style="position:absolute; top:-50px; right:-20px; width:200px; height:200px; background:radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%); border-radius:50%; pointer-events:none;">
+            </div>
+
+            <div class="d-flex align-items-center gap-4 position-relative z-10">
+                <img src="../assets/mascot1.png" alt="WasteSense Mascot" class="mascot mascot-lg">
+                <div>
+                    <h1 style="margin-bottom:var(--space-1);">Ready for today, <span id="userName"
+                            class="text-emerald">Collector</span>?</h1>
+                    <p class="text-secondary" style="font-size:var(--text-md); margin:0;">Here's your route overview and
+                        upcoming assignments.</p>
+                    <div id="workingAreaBadge" style="margin-top: 12px;"></div>
                 </div>
             </div>
         </div>
 
-        <div class="content-section" id="routes">
-            <h2>Today's Collection Routes</h2>
-            <div id="routesContainer">
-                <div class="placeholder">
-                    Loading your collection routes for today...
+        <!-- Top Stats (Feature 5) -->
+        <div class="card-grid-4 mb-5" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4);">
+            <!-- Stat 1: Today -->
+            <div class="nm-raised stat-card emerald custom-radius" style="padding:var(--space-4);">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="stat-icon"
+                        style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+                        📍</div>
+                    <div class="text-secondary" style="font-weight:600;font-size:var(--text-sm);">Collected Today</div>
                 </div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--text-primary); margin-left:52px;"
+                    id="statCollectedToday">-</div>
+            </div>
+
+            <!-- Stat 2: This Week -->
+            <div class="nm-raised stat-card custom-radius" style="padding:var(--space-4);">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="stat-icon"
+                        style="width:40px;height:40px;border-radius:10px;background:var(--bg-inset);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+                        🏆</div>
+                    <div class="text-secondary" style="font-weight:600;font-size:var(--text-sm);">Collected This Week
+                    </div>
+                </div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--text-primary); margin-left:52px;"
+                    id="statCollectedWeek">-</div>
+            </div>
+
+            <!-- Stat 3: Pending Available -->
+            <div class="nm-raised stat-card custom-radius" style="padding:var(--space-4);">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="stat-icon"
+                        style="width:40px;height:40px;border-radius:10px;background:var(--bg-inset);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+                        📥</div>
+                    <div class="text-secondary" style="font-weight:600;font-size:var(--text-sm);">Pending Available
+                    </div>
+                </div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--status-pending); margin-left:52px;"
+                    id="statPendingAvailable">-</div>
+            </div>
+
+            <!-- Stat 4: Active Tasks -->
+            <div class="nm-raised stat-card custom-radius" style="padding:var(--space-4);">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="stat-icon"
+                        style="width:40px;height:40px;border-radius:10px;background:var(--bg-inset);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">
+                        🚚</div>
+                    <div class="text-secondary" style="font-weight:600;font-size:var(--text-sm);">My Active Tasks</div>
+                </div>
+                <div style="font-size:2.5rem; font-weight:800; color:var(--brand-emerald); margin-left:52px;"
+                    id="statActiveTasks">-</div>
             </div>
         </div>
 
-        <div class="content-section">
-            <h2>Upcoming Collections</h2>
-            <div id="scheduleContainer">
-                <div class="placeholder">
-                    Loading your upcoming collection schedule...
+        <div class="mb-5">
+            <a href="collector-submissions.html" class="nm-inset custom-radius"
+                style="padding:var(--space-4); display:flex; justify-content:center; align-items:center; gap:16px; text-decoration:none; transition:all 0.2s; border:2px dashed rgba(255,255,255,0.1);">
+                <div style="font-size:1.5rem;">🗺️</div>
+                <div>
+                    <div style="font-weight:700; color:var(--brand-emerald);">Open Master Map →</div>
+                    <div class="text-muted" style="font-size:11px;">View all pending zones & filters</div>
                 </div>
+            </a>
+        </div>
+
+        <!-- Today's Routes -->
+        <div class="mb-5">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h2 style="font-size:var(--text-xl); margin:0;">Today's Route</h2>
+                <div class="badge badge-scheduled" id="todayDateLabel">Today</div>
+            </div>
+
+            <div id="routesContainer" class="card-grid-3">
+                <!-- Data injected via JS -->
             </div>
         </div>
-        
-        <div class="content-section">
-            <h2>Pending Waste Submissions</h2>
-            <p>View and filter waste collection requests by type and location.</p>
-            <a href="collector-submissions.html" class="btn" style="margin-top: 15px; display: inline-block;">View All Submissions</a>
+
+        <!-- Upcoming Collections (Table Format) -->
+        <div>
+            <h2 style="font-size:var(--text-xl); margin-bottom:var(--space-4);">Upcoming Schedule</h2>
+            <div class="nm-raised custom-radius" style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; min-width:600px;">
+                    <thead>
+                        <tr
+                            style="border-bottom:1px solid rgba(255,255,255,0.05); text-align:left; color:var(--text-muted); font-size:var(--text-xs); text-transform:uppercase; letter-spacing:1px;">
+                            <th style="padding:var(--space-3) var(--space-4); font-weight:600;">Date</th>
+                            <th style="padding:var(--space-3) var(--space-4); font-weight:600;">Resident</th>
+                            <th style="padding:var(--space-3) var(--space-4); font-weight:600;">Location</th>
+                            <th style="padding:var(--space-3) var(--space-4); font-weight:600;">Waste Profile</th>
+                            <th style="padding:var(--space-3) var(--space-4); font-weight:600; text-align:right;">Action
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleContainer" class="text-sm">
+                        <!-- Data injected via JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-    
+
+    <!-- Full Map Modal -->
+    <div id="mapModal">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 style="margin:0; font-size:var(--text-xl);">Location Details</h2>
+            <button class="btn-cancel" onclick="closeMapModal()"
+                style="background:transparent; color:white; border:none; font-size:2rem; line-height:1; cursor:pointer;">×</button>
+        </div>
+        <div id="fullMapContainer"></div>
+        <div class="mt-3 text-center">
+            <a href="#" id="directionsBtn" target="_blank" class="btn gradient-brand"
+                style="background:var(--brand-emerald); color:white;">Get Directions ↗</a>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
-        // Check authentication and load user data
-        window.addEventListener('DOMContentLoaded', async () => {
+        let fullMap = null;
+        let fullMapMarker = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
+            if (!user || user.role !== 'collector') {
+                window.location.href = 'login.html'; return;
             }
 
-            // Verify user is a collector (restrict dashboard to collectors only)
-            if (user.role !== 'collector') {
-                alert('Access denied. This page is for collectors only.');
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            document.getElementById('userName').textContent = user.full_name?.split(' ')[0] || 'Collector';
+            document.getElementById('todayDateLabel').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-            // Display user name
-            document.getElementById('userName').textContent = user.full_name || 'Collector';
+            try {
+                if (user.barangay_id) {
+                    const locRes = await apiFetch('/api/locations');
+                    if (locRes.status === 'success') {
+                        const loc = locRes.data.find(l => l.location_id === user.barangay_id);
+                        if (loc) {
+                            document.getElementById('workingAreaBadge').innerHTML = `<span style="background: rgba(16, 185, 129, 0.1); color: var(--brand-emerald); padding: 6px 14px; border-radius: var(--radius-pill); font-size: 13px; font-weight: 600; border: 1px solid var(--brand-emerald); display:inline-block;">📍 Assigned Area: ${loc.barangay_name}</span>`;
+                        }
+                    }
+                } else {
+                    document.getElementById('workingAreaBadge').innerHTML = `<div style="background: rgba(253, 126, 20, 0.1); color: var(--status-warning); padding: 10px 16px; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; border: 1px solid var(--status-warning); display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:18px;">⚠</span> You have not been assigned a working barangay. You will not receive any waste collection requests until an admin assigns you one.
+                    </div>`;
+                }
+            } catch (e) { console.error('Failed to load barangay context'); }
 
-            // Load collector's routes, schedule, and summary
-            await Promise.all([
-                loadTodaysRoutes(),
-                loadUpcomingCollections()
-            ]);
+            await loadCollectorData();
         });
 
-        // Load today's routes for the collector
-        async function loadTodaysRoutes() {
+        async function fetchDashboardStats() {
             try {
-                const response = await fetch('/api/waste/assigned', {
-                    credentials: 'include'
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-
-                    if (data.data && data.data.length > 0) {
-                        // Filter for today's routes only
-                        const today = new Date().toISOString().split('T')[0];
-                        const todaysRoutes = data.data.filter(submission => {
-                            return submission.scheduled_date &&
-                                   new Date(submission.scheduled_date).toISOString().split('T')[0] === today &&
-                                   submission.collection_status === 'scheduled';
-                        });
-
-                        if (todaysRoutes.length > 0) {
-                            document.getElementById('collectorStopsToday').textContent = todaysRoutes.length;
-                            displayRoutes(todaysRoutes);
-                        } else {
-                            document.getElementById('collectorStopsToday').textContent = '0';
-                            document.getElementById('routesContainer').innerHTML = `
-                                <div class="placeholder">
-                                    No collection routes assigned for today. Check back tomorrow or view upcoming collections.
-                                </div>
-                            `;
-                        }
-                    } else {
-                        document.getElementById('routesContainer').innerHTML = `
-                            <div class="placeholder">
-                                No assigned collections found. Check back later for new assignments.
-                            </div>
-                        `;
-                    }
-                } else {
-                    document.getElementById('routesContainer').innerHTML = `
-                        <div class="placeholder">
-                            Failed to load routes. Please try again later.
-                        </div>
-                    `;
+                const res = await apiFetch('/api/waste/collector/stats');
+                if (res.status === 'success' && res.data) {
+                    document.getElementById('statCollectedToday').textContent = res.data.collectedToday;
+                    document.getElementById('statCollectedWeek').textContent = res.data.collectedThisWeek;
+                    document.getElementById('statPendingAvailable').textContent = res.data.pendingAvailable;
+                    document.getElementById('statActiveTasks').textContent = res.data.myActiveTasks;
                 }
-            } catch (error) {
-                console.error('Error loading routes:', error);
-                document.getElementById('routesContainer').innerHTML = `
-                    <div class="placeholder">
-                        Error loading routes. Please try again later.
-                    </div>
-                `;
+            } catch (e) { console.error('Stats Error:', e); }
+        }
+
+        async function loadCollectorData() {
+            const rc = document.getElementById('routesContainer');
+            const sc = document.getElementById('scheduleContainer');
+            showSkeletonList(rc, 3, 'card');
+
+            await fetchDashboardStats();
+
+            try {
+                const res = await apiFetch('/api/waste/assigned');
+                const data = res.data || [];
+
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                // Filter today
+                const todayRoutes = data.filter(s => s.scheduled_date && s.scheduled_date.startsWith(todayStr) && s.collection_status === 'scheduled');
+
+                // Filter upcoming (future)
+                const upcoming = data.filter(s => s.scheduled_date && s.scheduled_date > todayStr)
+                    .sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
+
+                renderTodayRoutes(todayRoutes, rc);
+                renderUpcoming(upcoming, sc);
+
+            } catch (e) {
+                console.error(e);
+                rc.innerHTML = `<div class="text-muted p-4">Failed to load assignment data.</div>`;
+                sc.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4">Failed to load schedule.</td></tr>`;
             }
         }
 
-        // Load upcoming collections for the collector
-        async function loadUpcomingCollections() {
-            try {
-                const response = await fetch('/api/waste/assigned', {
-                    credentials: 'include'
-                });
+        // Auto-refresh stats every 60 seconds
+        setInterval(fetchDashboardStats, 60000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') fetchDashboardStats();
+        });
 
-                if (response.ok) {
-                    const data = await response.json();
+        const getWasteEmoji = (category) => {
+            const map = { 'biodegradable': '🌱', 'recyclable': '♻️', 'non-biodegradable': '🗑️', 'hazardous': '⚠️', 'special': '🛋️', 'mixed': '📦' };
+            return map[category?.toLowerCase()] || '📦';
+        };
 
-                    if (data.data && data.data.length > 0) {
-                        // Filter for upcoming collections (today and future)
-                        const today = new Date().toISOString().split('T')[0];
-                        const upcomingCollections = data.data.filter(submission => {
-                            return submission.scheduled_date &&
-                                   new Date(submission.scheduled_date).toISOString().split('T')[0] >= today;
-                        }).sort((a, b) => new Date(a.scheduled_date) - new Date(b.scheduled_date));
+        const parseTags = (tagStr) => {
+            if (!tagStr) return [];
+            try { return typeof tagStr === 'string' ? JSON.parse(tagStr) : tagStr; }
+            catch { return []; }
+        };
 
-                        if (upcomingCollections.length > 0) {
-                            document.getElementById('collectorUpcomingCount').textContent = upcomingCollections.length;
-                            displayUpcomingCollections(upcomingCollections);
-                        } else {
-                            document.getElementById('collectorUpcomingCount').textContent = '0';
-                            document.getElementById('scheduleContainer').innerHTML = `
-                                <div class="placeholder">
-                                    No upcoming collections scheduled. Check back later for new assignments.
-                                </div>
-                            `;
-                        }
-                    } else {
-                        document.getElementById('scheduleContainer').innerHTML = `
-                            <div class="placeholder">
-                                No assigned collections found. Check back later for new assignments.
-                            </div>
-                        `;
-                    }
-                } else {
-                    document.getElementById('scheduleContainer').innerHTML = `
-                        <div class="placeholder">
-                            Failed to load schedule. Please try again later.
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading schedule:', error);
-                document.getElementById('scheduleContainer').innerHTML = `
-                    <div class="placeholder">
-                        Error loading schedule. Please try again later.
+        function renderTodayRoutes(routes, container) {
+            if (routes.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1 / -1; padding:var(--space-6); text-align:center; background:var(--bg-inset); border-radius:var(--radius-lg); border:1px dashed rgba(255,255,255,0.1);">
+                        <div style="font-size:2.5rem; margin-bottom:var(--space-2); opacity:0.5;">☕</div>
+                        <h3 class="mb-2">No stops today</h3>
+                        <p class="text-secondary" style="font-size:var(--text-sm);">You have no pending collections scheduled for today.</p>
                     </div>
                 `;
+                return;
             }
-        }
 
-        // Display routes in the container
-        function displayRoutes(routes) {
-            const container = document.getElementById('routesContainer');
+            container.innerHTML = routes.map((r, index) => {
+                const mapId = `thumbMap_${index}`;
+                const cat = r.confirmed_category || r.predicted_category || 'mixed';
+                const emoji = getWasteEmoji(cat);
+                const address = r.address_description || r.barangay_name || 'No specific address';
+                const types = parseTags(r.waste_types);
 
-            let routesHtml = '<div class="routes-list">';
+                const typeStr = types.length > 0 ? types.join(', ') : cat;
 
-            routes.forEach(route => {
-                const formattedDate = route.scheduled_date ?
-                    new Date(route.scheduled_date).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    }) : 'Not scheduled';
-
-                // Determine waste types
-                let wasteTypes = [];
-                if (route.waste_types) {
-                    if (typeof route.waste_types === 'string') {
-                        try {
-                            wasteTypes = JSON.parse(route.waste_types);
-                        } catch (e) {
-                            wasteTypes = [];
-                        }
-                    } else if (Array.isArray(route.waste_types)) {
-                        wasteTypes = route.waste_types;
-                    }
-                } else if (route.confirmed_category || route.predicted_category) {
-                    wasteTypes = [route.confirmed_category || route.predicted_category];
-                }
-
-                const wasteTypesHtml = wasteTypes.length > 0
-                    ? wasteTypes.map(type => `<span class="waste-tag ${type}">${type}</span>`).join('')
-                    : '<span class="waste-tag">Not specified</span>';
-
-                routesHtml += `
-                    <div class="route-item">
-                        <div class="route-info">
-                            <h3>${route.full_name || 'Unknown Resident'}</h3>
-                            <p><strong>Address:</strong> ${route.address_description || 'Address not provided'}</p>
-                            <p><strong>Location:</strong> ${route.barangay_name || ''}, ${route.municipality || ''}</p>
-                            <p><strong>Scheduled:</strong> ${formattedDate}</p>
-                            <div class="waste-types">
-                                <strong>Waste Types:</strong> ${wasteTypesHtml}
+                return `
+                    <div class="nm-raised route-card custom-radius">
+                        <div id="${mapId}" class="map-thumb" data-lat="${r.latitude || 14.5995}" data-lng="${r.longitude || 120.9842}"></div>
+                        <div class="route-content">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div style="font-weight:700; font-size:var(--text-md);">${r.full_name || 'Resident'}</div>
+                                <div style="font-size:1.2rem;">${emoji}</div>
                             </div>
-                        </div>
-                        <div class="route-actions">
-                            <a href="/pages/collector-submissions.html" class="btn btn-small">View Details</a>
+                            
+                            <div style="font-size:12px; color:var(--text-secondary); margin-bottom:var(--space-3); display:flex; gap:6px;">
+                                <span>📍</span> <span class="text-truncate">${address}</span>
+                            </div>
+
+                            <div style="font-size:11px; color:var(--text-muted); margin-bottom:var(--space-4);">
+                                <strong>Items:</strong> ${typeStr}
+                            </div>
+                            
+                            <div class="mt-auto d-flex gap-2">
+                                <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:var(--text-xs);" onclick="openMapModal(${r.latitude}, ${r.longitude}, '${encodeURIComponent(address)}')">Full Map</button>
+                                <a href="collector-submissions.html" class="btn gradient-brand" style="flex:1; background:var(--brand-emerald); color:white; padding:6px; font-size:var(--text-xs); text-align:center;">Manage</a>
+                            </div>
                         </div>
                     </div>
                 `;
-            });
+            }).join('');
 
-            routesHtml += '</div>';
-            container.innerHTML = routesHtml;
+            // Initialize leaflef thumbnails (slight delay for DOM render)
+            setTimeout(() => {
+                document.querySelectorAll('.map-thumb').forEach(el => {
+                    const lat = parseFloat(el.dataset.lat);
+                    const lng = parseFloat(el.dataset.lng);
+                    if (isNaN(lat) || isNaN(lng)) return;
+
+                    const m = L.map(el.id, { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false }).setView([lat, lng], 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(m);
+                    L.marker([lat, lng]).addTo(m);
+                });
+            }, 100);
         }
 
-        // Display upcoming collections in the container
-        function displayUpcomingCollections(collections) {
-            const container = document.getElementById('scheduleContainer');
+        function renderUpcoming(upcoming, container) {
+            if (upcoming.length === 0) {
+                container.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:var(--space-6); color:var(--text-muted);">No upcoming schedules assigned.</td></tr>`;
+                return;
+            }
 
-            let scheduleHtml = '<div class="schedule-list">';
+            container.innerHTML = upcoming.map(u => {
+                const date = new Date(u.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+                const cat = u.confirmed_category || u.predicted_category || 'mixed';
+                const emoji = getWasteEmoji(cat);
+                const loc = `${u.barangay_name || ''} ${u.municipality || ''}`.trim() || 'Unknown';
 
-            collections.forEach(collection => {
-                const formattedDate = collection.scheduled_date ?
-                    new Date(collection.scheduled_date).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                    }) : 'Not scheduled';
+                return `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.02); transition:background 0.2s;" onmouseover="this.style.background='var(--bg-inset)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding:var(--space-3) var(--space-4); white-space:nowrap; font-weight:600; color:var(--text-secondary);">${date}</td>
+                        <td style="padding:var(--space-3) var(--space-4); font-weight:500;">${u.full_name || 'Resident'}</td>
+                        <td style="padding:var(--space-3) var(--space-4); color:var(--text-secondary);"><span style="font-size:10px;">📍</span> ${loc}</td>
+                        <td style="padding:var(--space-3) var(--space-4);">
+                            <span style="display:inline-flex; align-items:center; gap:6px; padding:2px 8px; background:var(--bg-inset); border-radius:12px; font-size:11px;">
+                                <span>${emoji}</span> ${cat.toUpperCase()}
+                            </span>
+                        </td>
+                        <td style="padding:var(--space-3) var(--space-4); text-align:right;">
+                            <a href="collector-submissions.html" class="text-emerald" style="text-decoration:none; font-weight:600; font-size:12px;">Review →</a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
 
-                // Determine waste types
-                let wasteTypes = [];
-                if (collection.waste_types) {
-                    if (typeof collection.waste_types === 'string') {
-                        try {
-                            wasteTypes = JSON.parse(collection.waste_types);
-                        } catch (e) {
-                            wasteTypes = [];
-                        }
-                    } else if (Array.isArray(collection.waste_types)) {
-                        wasteTypes = collection.waste_types;
-                    }
-                } else if (collection.confirmed_category || collection.predicted_category) {
-                    wasteTypes = [collection.confirmed_category || collection.predicted_category];
+        /* --- Map Modal Logic --- */
+        window.openMapModal = function (lat, lng, addressEnc) {
+            if (isNaN(lat) || isNaN(lng)) { showToast('Invalid GPS coordinates', 'error'); return; }
+            const modal = document.getElementById('mapModal');
+            modal.classList.add('active');
+
+            const dirBtn = document.getElementById('directionsBtn');
+            dirBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+            setTimeout(() => {
+                if (!fullMap) {
+                    fullMap = L.map('fullMapContainer').setView([lat, lng], 15);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(fullMap);
+                    fullMapMarker = L.marker([lat, lng]).addTo(fullMap);
+                } else {
+                    fullMap.invalidateSize();
+                    fullMap.setView([lat, lng], 15);
+                    fullMapMarker.setLatLng([lat, lng]);
                 }
 
-                const wasteTypesHtml = wasteTypes.length > 0
-                    ? wasteTypes.map(type => `<span class="waste-tag ${type}">${type}</span>`).join('')
-                    : '<span class="waste-tag">Not specified</span>';
+                const address = decodeURIComponent(addressEnc);
+                if (address && address !== 'No specific address') {
+                    fullMapMarker.bindPopup(`<b>Target Location</b><br>${address}`).openPopup();
+                } else {
+                    fullMapMarker.closePopup();
+                }
 
-                scheduleHtml += `
-                    <div class="schedule-item">
-                        <div class="schedule-day">
-                            <h3>${collection.collection_status === 'scheduled' ? 'Scheduled' : collection.collection_status}</h3>
-                            <p class="next-date">${formattedDate}</p>
-                        </div>
-                        <div class="schedule-details">
-                            <p><strong>Resident:</strong> ${collection.full_name || 'Unknown'}</p>
-                            <p><strong>Location:</strong> ${collection.barangay_name || ''}, ${collection.municipality || ''}</p>
-                            <div class="waste-types">
-                                <strong>Waste Types:</strong> ${wasteTypesHtml}
-                            </div>
-                        </div>
-                        <div class="schedule-actions">
-                            <a href="/pages/collector-submissions.html" class="btn btn-small">Manage</a>
-                        </div>
-                    </div>
-                `;
-            });
+            }, 200);
+        };
 
-            scheduleHtml += '</div>';
-            container.innerHTML = scheduleHtml;
-        }
+        window.closeMapModal = function () {
+            document.getElementById('mapModal').classList.remove('active');
+        };
     </script>
 </body>
+
 </html>

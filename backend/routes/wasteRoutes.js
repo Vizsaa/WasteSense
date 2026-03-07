@@ -31,9 +31,14 @@ router.get('/:id', wasteController.getSubmission);
 // Update submission
 router.put('/:id', wasteController.updateSubmission);
 
+// Collector metrics and history
+router.get('/collector/history', wasteController.getCollectorHistory);
+router.get('/collector/stats', wasteController.getCollectorStats);
+
 // Collector actions
 router.post('/:id/accept', wasteController.acceptSubmission);
 router.post('/:id/complete', wasteController.completeSubmission);
+router.put('/:id/report-problem', wasteController.reportProblem);
 
 // Delete submission
 router.delete('/:id', wasteController.deleteSubmission);

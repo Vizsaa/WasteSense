@@ -1,80 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feedback - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        .muted { color: #6c757d; font-size: 13px; }
-        .nowrap { white-space: nowrap; }
+        .admin-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 var(--space-2);
+            margin-top: var(--space-3);
+        }
+
+        .admin-table th {
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            padding: 0 var(--space-4) var(--space-2);
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .admin-table td {
+            background: var(--bg-inset);
+            padding: var(--space-3) var(--space-4);
+            font-size: var(--text-sm);
+            vertical-align: top;
+            /* Text might be long */
+        }
+
+        .admin-table tbody tr {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .admin-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-table td:first-child {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+        }
+
+        .admin-table td:last-child {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: var(--space-3);
+            background: var(--bg-inset);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-4);
+            flex-wrap: wrap;
+            align-items: center;
+        }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>Resident Feedback</h1>
-            <p class="muted">View feedback entries submitted by residents.</p>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5">
+            <div>
+                <a href="dashboard-admin.html" class="text-secondary text-sm mb-2"
+                    style="display:inline-block; text-decoration:none;">← Back to Dashboard</a>
+                <h1 style="margin:0; font-size:var(--text-2xl);">Resident Feedback</h1>
+                <p class="text-secondary mt-1">Review bug reports, suggestions, and platform reviews.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="loadFeedback()"
+                style="display:flex; align-items:center; gap:8px;">
+                <span>🔄</span> Refresh Inbox
+            </button>
         </div>
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
-                <li><a href="admin-feedback.html">Feedback</a></li>
-            </ul>
-        </nav>
-
-        <div class="content-section">
-            <h2>Feedback List</h2>
-            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-                <div class="form-group" style="min-width:220px; margin:0;">
-                    <label for="limitSelect">Show</label>
-                    <select id="limitSelect">
-                        <option value="20">20</option>
-                        <option value="50" selected>50</option>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                    </select>
-                </div>
-                <button class="btn btn-small" id="reloadBtn" type="button">Reload</button>
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="input-group d-flex align-items-center gap-3">
+                <span class="text-sm text-secondary">Display Limit:</span>
+                <select id="limitSelect" class="input-light" style="width:100px;">
+                    <option value="20">20</option>
+                    <option value="50" selected>50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                </select>
             </div>
+        </div>
 
-            <div id="alert-container" style="margin-top: 12px;"></div>
-
-            <table class="locations-table table-small" style="margin-top: 12px;">
+        <!-- Desktop Table -->
+        <div style="overflow-x:auto;">
+            <table class="admin-table">
                 <thead>
                     <tr>
-                        <th class="nowrap">Date</th>
-                        <th>User</th>
-                        <th>Email</th>
-                        <th>Message</th>
+                        <th style="width:150px;">Timestamp</th>
+                        <th style="width:250px;">Resident Details</th>
+                        <th>Feedback Message</th>
                     </tr>
                 </thead>
                 <tbody id="feedbackBody">
-                    <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+                    <!-- Injected via JS -->
                 </tbody>
             </table>
+            <div id="tableFooter" class="text-center text-muted text-sm mt-4">Showing up to <span
+                    id="limitDisp">50</span> recent entries.</div>
         </div>
+
     </div>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
 
-            if (user.role !== 'admin') {
-                alert('Access denied. Admin only.');
-                window.location.href = '/pages/login.html';
-                return;
-            }
-
-            document.getElementById('reloadBtn').addEventListener('click', loadFeedback);
             document.getElementById('limitSelect').addEventListener('change', loadFeedback);
 
             await loadFeedback();
@@ -84,60 +131,61 @@
             const tbody = document.getElementById('feedbackBody');
             const limit = document.getElementById('limitSelect').value || '50';
 
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>';
+            document.getElementById('limitDisp').textContent = limit;
+            showSkeletonList(tbody, 3, 'table', 3);
 
             try {
-                const resp = await fetch(`/api/feedback?limit=${encodeURIComponent(limit)}`, { credentials: 'include' });
-                const data = await resp.json();
+                const res = await apiFetch(`/api/feedback?limit=${encodeURIComponent(limit)}`);
+                const rows = res.data || [];
 
-                if (!resp.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load feedback');
-                }
-
-                const rows = data.data || [];
                 if (rows.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No feedback entries yet.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="padding:40px; color:var(--text-muted);">Inbox is empty. No recent feedback found.</td></tr>`;
+                    document.getElementById('tableFooter').style.display = 'none';
                     return;
                 }
 
+                document.getElementById('tableFooter').style.display = 'block';
+
                 tbody.innerHTML = rows.map(r => {
-                    const dt = r.created_at ? new Date(r.created_at).toLocaleString() : '';
-                    const name = r.full_name || 'Unknown';
-                    const email = r.email || '-';
-                    const msg = (r.message || '').slice(0, 500);
+                    const dt = r.created_at ? new Date(r.created_at) : new Date();
+                    const dStr = dt.toLocaleDateString();
+                    const tStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    const name = r.full_name || 'System User';
+                    const email = r.email || 'No email attached';
+
+                    // Basic sentiment mock for visuals (just parsing length or keywords could work, but for now we render plainly)
+                    const msg = (r.message || 'No content provided');
+
+                    // Format message nicely
+                    const formattedMsg = escapeHtml(msg).replace(/\n/g, '<br>');
+
                     return `
                         <tr>
-                            <td class="nowrap">${escapeHtml(dt)}</td>
-                            <td>${escapeHtml(name)}</td>
-                            <td>${escapeHtml(email)}</td>
-                            <td style="max-width: 520px;">${escapeHtml(msg)}${(r.message || '').length > 500 ? '…' : ''}</td>
+                            <td>
+                                <div class="fw-600">${dStr}</div>
+                                <div class="text-xs text-muted mt-1">${tStr}</div>
+                            </td>
+                            <td>
+                                <div class="fw-600">${escapeHtml(name)}</div>
+                                <div class="text-xs text-secondary mt-1">${escapeHtml(email)}</div>
+                            </td>
+                            <td>
+                                <div class="nm-inset" style="padding:12px; border-radius:var(--radius-md); font-size:13px; line-height:1.6; color:rgba(255,255,255,0.85); white-space:pre-wrap;">${formattedMsg}</div>
+                            </td>
                         </tr>
                     `;
                 }).join('');
-            } catch (err) {
-                console.error(err);
-                showAlert('Error loading feedback. Please try again.', 'error');
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Error loading feedback.</td></tr>';
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">Failed to synchronize feedback data stream.</td></tr>`;
             }
         }
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            if (!alertContainer) return;
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
-            setTimeout(() => {
-                alertContainer.innerHTML = '';
-            }, 5000);
-        }
-
         function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[m]);
         }
     </script>
 </body>
+
 </html>

@@ -1,139 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Submissions - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
-        .status-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: capitalize;
+        .admin-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 var(--space-2);
+            margin-top: var(--space-3);
         }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-scheduled { background: #d1ecf1; color: #0c5460; }
-        .badge-collected { background: #d4edda; color: #155724; }
-        .muted { color:#6c757d; font-size: 13px; }
-        .btn-inline { width: auto; padding: 8px 12px; font-size: 13px; }
+
+        .admin-table th {
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            padding: 0 var(--space-4) var(--space-2);
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .admin-table td {
+            background: var(--bg-inset);
+            padding: var(--space-3) var(--space-4);
+            font-size: var(--text-sm);
+            vertical-align: middle;
+        }
+
+        .admin-table tbody tr {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .admin-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-table td:first-child {
+            border-radius: var(--radius-md) 0 0 var(--radius-md);
+        }
+
+        .admin-table td:last-child {
+            border-radius: 0 var(--radius-md) var(--radius-md) 0;
+            text-align: right;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: var(--space-3);
+            background: var(--bg-inset);
+            padding: var(--space-3);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--space-4);
+            flex-wrap: wrap;
+            align-items: center;
+        }
     </style>
 </head>
-<body>
-    <button class="logout-btn" onclick="logout()">Logout</button>
 
-    <div class="dashboard">
-        <div class="dashboard-header">
-            <h1>All Waste Submissions</h1>
-            <p class="muted">View submissions across all statuses (Pending, Scheduled, Collected).</p>
+<body class="stagger-1">
+
+    <div class="main-content">
+        <!-- Header -->
+        <div class="d-flex align-items-center justify-content-between mb-5">
+            <div>
+                <a href="dashboard-admin.html" class="text-secondary text-sm mb-2"
+                    style="display:inline-block; text-decoration:none;">← Back to Dashboard</a>
+                <h1 style="margin:0; font-size:var(--text-2xl);">Directory: Submissions</h1>
+                <p class="text-secondary mt-1">Global audit log of all waste reports.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="window.location.href='admin-analytics.html'"
+                style="display:flex; align-items:center; gap:8px;">
+                <span>📊</span> View Map Analytics
+            </button>
         </div>
 
-        <nav class="nav-menu">
-            <ul>
-                <li><a href="dashboard-admin.html">← Back to Dashboard</a></li>
-                <li><a href="admin-submissions.html">Submissions</a></li>
-                <li><a href="admin-analytics.html">Analytics</a></li>
-            </ul>
-        </nav>
-
-        <div class="content-section">
-            <h2>Filters</h2>
-            <div id="alert-container"></div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="statusFilter">Status</label>
-                    <select id="statusFilter">
-                        <option value="">All</option>
-                        <option value="pending">Pending</option>
-                        <option value="scheduled">Scheduled</option>
-                        <option value="collected">Collected</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="barangayFilter">Barangay</label>
-                    <select id="barangayFilter">
-                        <option value="">All Barangays</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="fromDate">From</label>
-                    <input type="date" id="fromDate">
-                </div>
-                <div class="form-group">
-                    <label for="toDate">To</label>
-                    <input type="date" id="toDate">
-                </div>
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <!-- Keep traditional filters but styled as inputs -->
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <select id="statusFilter" class="input-light w-100">
+                    <option value="">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="collected">Collected</option>
+                </select>
             </div>
 
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-                <button class="btn btn-small btn-inline" id="applyBtn" type="button">Apply</button>
-                <button class="btn btn-small btn-inline btn-secondary" id="clearBtn" type="button">Clear</button>
-                <div class="muted">Tip: Use date filters to view temporal patterns more clearly.</div>
+            <div class="input-group" style="flex:1; min-width:150px;">
+                <select id="barangayFilter" class="input-light w-100">
+                    <option value="">All Barangays</option>
+                </select>
+            </div>
+
+            <div class="input-group" style="flex:1; min-width:130px;">
+                <input type="date" id="fromDate" class="input-light w-100" style="color-scheme:dark;">
+            </div>
+            <div class="input-group" style="flex:1; min-width:130px;">
+                <input type="date" id="toDate" class="input-light w-100" style="color-scheme:dark;">
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn gradient-brand text-dark" id="applyBtn" style="padding:10px 16px;">Filter</button>
+                <button class="btn btn-ghost" id="clearBtn">Clear</button>
             </div>
         </div>
 
-        <div class="content-section">
-            <h2>Results</h2>
-            <table class="locations-table table-small">
+        <!-- Desktop Table -->
+        <div style="overflow-x:auto;">
+            <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
+                        <th>ID / Date</th>
+                        <th>Resident / Location</th>
+                        <th style="max-width:300px;">Description</th>
+                        <th>Map Link</th>
                         <th>Status</th>
-                        <th>Created</th>
-                        <th>Resident</th>
-                        <th>Barangay</th>
-                        <th>Description</th>
-                        <th>Map</th>
                     </tr>
                 </thead>
                 <tbody id="submissionsBody">
-                    <tr><td colspan="7" style="text-align:center;">Loading...</td></tr>
+                    <!-- Injected via JS -->
                 </tbody>
             </table>
+
+            <div id="tableFooter" class="text-center text-muted text-sm mt-4">Showing up to 200 recent records.</div>
         </div>
     </div>
 
+    <script src="../js/utils.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/layout.js"></script>
+
     <script>
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
-            if (!user) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
-
-            if (user.role !== 'admin') {
-                alert('Access denied. Admin only.');
-                window.location.href = '/pages/login.html';
-                return;
-            }
+            if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
 
             document.getElementById('applyBtn').addEventListener('click', loadSubmissions);
             document.getElementById('clearBtn').addEventListener('click', clearFilters);
 
-            await loadBarangays();
-            await loadSubmissions();
+            await Promise.all([loadBarangays(), loadSubmissions()]);
         });
 
         async function loadBarangays() {
             try {
-                const response = await fetch('/api/locations', { credentials: 'include' });
-                const data = await response.json();
-                if (!response.ok || data.status !== 'success') return;
-
-                const select = document.getElementById('barangayFilter');
-                (data.data || []).forEach(loc => {
+                const res = await apiFetch('/api/locations');
+                const sel = document.getElementById('barangayFilter');
+                (res.data || []).forEach(loc => {
                     const opt = document.createElement('option');
                     opt.value = loc.location_id;
                     opt.textContent = `${loc.barangay_name}, ${loc.municipality}`;
-                    select.appendChild(opt);
+                    sel.appendChild(opt);
                 });
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (e) { }
         }
 
         function clearFilters() {
@@ -144,86 +168,86 @@
             loadSubmissions();
         }
 
+        function getStatusBadge(statusStr) {
+            const key = String(statusStr).toLowerCase();
+            if (key === 'scheduled') return '<span class="badge badge-scheduled">Scheduled</span>';
+            if (key === 'collected') return '<span class="badge badge-read" style="background:rgba(16,185,129,0.1); color:var(--brand-emerald);">Collected</span>';
+            return '<span class="badge" style="background:rgba(253,126,20,0.1); color:rgba(253,126,20,1); border:1px solid rgba(253,126,20,0.5);">Pending</span>';
+        }
+
         async function loadSubmissions() {
             const tbody = document.getElementById('submissionsBody');
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading...</td></tr>';
+            showSkeletonList(tbody, 5, 'table', 5);
 
             const params = new URLSearchParams();
             const status = document.getElementById('statusFilter').value;
-            const barangay = document.getElementById('barangayFilter').value;
-            const fromDate = document.getElementById('fromDate').value;
-            const toDate = document.getElementById('toDate').value;
+            const brg = document.getElementById('barangayFilter').value;
+            const fr = document.getElementById('fromDate').value;
+            const to = document.getElementById('toDate').value;
 
             if (status) params.set('status', status);
-            if (barangay) params.set('barangay_id', barangay);
-            if (fromDate) params.set('from_date', fromDate);
-            if (toDate) params.set('to_date', toDate);
+            if (brg) params.set('barangay_id', brg);
+            if (fr) params.set('from_date', fr);
+            if (to) params.set('to_date', to);
             params.set('limit', '200');
             params.set('offset', '0');
 
             try {
-                const resp = await fetch(`/api/waste/all?${params.toString()}`, { credentials: 'include' });
-                const data = await resp.json();
+                const res = await apiFetch(`/api/waste/all?${params.toString()}`);
+                const rows = res.data || [];
 
-                if (!resp.ok || data.status !== 'success') {
-                    throw new Error(data.message || 'Failed to load submissions');
-                }
-
-                const rows = data.data || [];
                 if (rows.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No submissions found.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:40px; color:var(--text-muted);">No records match criteria.</td></tr>`;
+                    document.getElementById('tableFooter').style.display = 'none';
                     return;
                 }
 
+                document.getElementById('tableFooter').style.display = 'block';
+
                 tbody.innerHTML = rows.map(s => {
-                    const created = s.created_at ? new Date(s.created_at).toLocaleString() : '';
-                    const statusKey = (s.collection_status || 'pending').toLowerCase();
-                    const badgeClass = statusKey === 'scheduled' ? 'badge-scheduled' : (statusKey === 'collected' ? 'badge-collected' : 'badge-pending');
-                    const badge = `<span class="status-badge ${badgeClass}">${escapeHtml(statusKey)}</span>`;
+                    const dt = s.created_at ? new Date(s.created_at) : new Date();
+                    const dtStr = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-                    const barangayText = s.barangay_name ? `${s.barangay_name}${s.municipality ? ', ' + s.municipality : ''}` : '-';
-                    const desc = (s.waste_description || '').slice(0, 80);
+                    const locText = s.barangay_name ? `${s.barangay_name}${s.municipality ? ', ' + s.municipality : ''}` : '-';
+                    const desc = (s.waste_description || 'No description provided');
+                    const descTrunc = desc.length > 70 ? desc.substring(0, 70) + '...' : desc;
 
-                    let mapLink = '-';
+                    let mapAct = '<span class="text-muted text-xs">No Geo</span>';
                     if (s.latitude && s.longitude) {
-                        const url = `https://www.google.com/maps?q=${encodeURIComponent(s.latitude)},${encodeURIComponent(s.longitude)}`;
-                        mapLink = `<a href="${url}" target="_blank" rel="noopener">View</a>`;
+                        const mUrl = `https://www.google.com/maps?q=${encodeURIComponent(s.latitude)},${encodeURIComponent(s.longitude)}`;
+                        mapAct = `<a href="${mUrl}" target="_blank" class="btn btn-small nm-inset" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:4px 10px;"><span style="color:var(--brand-blue);">📍</span> GIS</a>`;
                     }
 
                     return `
                         <tr>
-                            <td>${s.submission_id}</td>
-                            <td>${badge}</td>
-                            <td>${escapeHtml(created)}</td>
-                            <td>${escapeHtml(s.full_name || '-')}</td>
-                            <td>${escapeHtml(barangayText)}</td>
-                            <td>${escapeHtml(desc)}${(s.waste_description || '').length > 80 ? '…' : ''}</td>
-                            <td>${mapLink}</td>
+                            <td>
+                                <div class="text-xs text-muted">ID: #${s.submission_id}</div>
+                                <div class="fw-600 mt-1 text-sm">${dtStr}</div>
+                            </td>
+                            <td>
+                                <div class="fw-600">${escapeHtml(s.full_name || 'Anonymous')}</div>
+                                <div class="text-xs text-secondary mt-1">${escapeHtml(locText)}</div>
+                            </td>
+                            <td class="text-secondary text-sm" style="max-width:300px; white-space:normal;" title="${escapeHtml(desc)}">
+                                ${escapeHtml(descTrunc)}
+                            </td>
+                            <td>${mapAct}</td>
+                            <td class="text-right">
+                                ${getStatusBadge(s.collection_status)}
+                            </td>
                         </tr>
                     `;
                 }).join('');
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Error loading submissions.</td></tr>';
-                showAlert('Error loading submissions. Please try again.', 'error');
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Failed to query submission database.</td></tr>`;
             }
         }
 
-        function showAlert(message, type) {
-            const alertContainer = document.getElementById('alert-container');
-            if (!alertContainer) return;
-            alertContainer.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
-            setTimeout(() => { alertContainer.innerHTML = ''; }, 5000);
-        }
-
         function escapeHtml(str) {
-            return String(str)
-                .replaceAll('&', '&amp;')
-                .replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;')
-                .replaceAll('"', '&quot;')
-                .replaceAll("'", '&#039;');
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[m]);
         }
     </script>
 </body>
+
 </html>

@@ -16,5 +16,6 @@ router.get('/', requireAdmin, userController.getAllUsers);
 router.post('/', requireAdmin, userController.createUserAdmin);
 router.put('/:id', requireAdmin, userController.updateUserAdmin);
 router.post('/:id/reset-password', requireAdmin, userController.resetUserPasswordAdmin);
+router.put('/:id/assign-barangay', requireAdmin, userController.assignCollectorBarangay);
 
 module.exports = router;
