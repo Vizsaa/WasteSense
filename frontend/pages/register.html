@@ -329,8 +329,25 @@
                 });
 
                 if (data.status === 'success') {
-                    showToast(data.message || 'Registration successful! Redirecting...', 'success');
-                    setTimeout(() => { window.location.href = 'login.html'; }, 3000);
+                    showToast(data.message || 'Registration successful!', 'success');
+
+                    // Collector accounts are created as inactive and require admin verification.
+                    if (formData.role === 'collector') {
+                        const formEl = document.getElementById('registerForm');
+                        formEl.innerHTML = `
+                            <div class="text-center" style="padding: var(--space-6) 0;">
+                                <div style="font-size: 3rem; margin-bottom: var(--space-2);">🚛</div>
+                                <h3 style="margin-bottom: var(--space-2);">Collector request submitted</h3>
+                                <p class="text-secondary" style="font-size: var(--text-sm); margin-bottom: var(--space-4);">
+                                    Your account is pending LGU admin verification. You will be able to log in once approved.
+                                </p>
+                                <a href="login.html" class="btn btn-ghost">Back to Login</a>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    setTimeout(() => { window.location.href = 'login.html'; }, 2500);
                 }
             } catch (error) {
                 errBox.style.display = 'block';

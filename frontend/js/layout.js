@@ -28,13 +28,19 @@ function renderLayout(user) {
     mainContent.id = 'main-content';
     mainContent.className = 'main-content';
 
-    // Move all existing children into mainContent (except script tags that belong at end)
+    // Move all existing children into mainContent (except external scripts at end).
+    // If a page already wrapped content in `.main-content`, unwrap it to avoid nested padding.
     while (body.firstChild) {
-        if (body.firstChild.tagName === 'SCRIPT' && body.firstChild.src) {
-            // Leave scripts alone or move them later
-            break;
+        if (body.firstChild.tagName === 'SCRIPT' && body.firstChild.src) break;
+
+        const node = body.firstChild;
+        if (node.nodeType === 1 && node.classList && node.classList.contains('main-content')) {
+            while (node.firstChild) mainContent.appendChild(node.firstChild);
+            node.remove();
+            continue;
         }
-        mainContent.appendChild(body.firstChild);
+
+        mainContent.appendChild(node);
     }
 
     // Create Sidebar
@@ -106,6 +112,11 @@ function renderLayout(user) {
 
     setupNotificationsDropdown();
     initLayoutStyles();
+
+    // Prime notification badge on load
+    if (typeof window.updateNotificationCount === 'function') {
+        window.updateNotificationCount();
+    }
 }
 
 function getInitials(name) {
@@ -172,7 +183,7 @@ function getNavItems(role, isMobile) {
     if (isMobile) {
         // Render for bottom nav
         return items.filter(item => !item.desktopOnly).slice(0, 5).map(item => `
-            <a href="${item.href}" class="bottom-nav-item ${isCurrent(item.href)}">
+            <a href=${JSON.stringify(item.href)} class="bottom-nav-item ${isCurrent(item.href)}">
                 <span class="nav-icon">${item.icon}</span>
                 <span class="nav-label">${item.label}</span>
             </a>
@@ -181,7 +192,7 @@ function getNavItems(role, isMobile) {
 
     // Render for sidebar
     return items.filter(item => !item.mobileOnly).map(item => `
-        <a href="${item.href}" class="sidebar-item ${isCurrent(item.href) ? 'active' : ''}">
+        <a href=${JSON.stringify(item.href)} class="sidebar-item ${isCurrent(item.href) ? 'active' : ''}">
             <span class="nav-icon">${item.icon}</span>
             <span class="nav-label">${item.label}</span>
         </a>
@@ -216,7 +227,7 @@ window.toggleNotifications = async function () {
             const list = document.getElementById('nav-dropdown-list');
             if (data.data && data.data.length > 0) {
                 list.innerHTML = data.data.slice(0, 5).map(n => `
-                    <div class="${n.is_read ? 'nm-flat' : 'nm-raised'}" style="padding:12px; border-radius:8px; ${!n.is_read ? 'border-left:3px solid var(--brand-lime);' : ''}">
+                    <div class=${JSON.stringify(n.is_read ? 'nm-flat' : 'nm-raised')} style="padding:12px; border-radius:8px; ${!n.is_read ? 'border-left:3px solid var(--brand-lime);' : ''}">
                         <div style="font-size:13px; margin-bottom:4px;">${n.message}</div>
                         <div class="text-muted" style="font-size:11px;">${new Date(n.created_at).toLocaleString()}</div>
                     </div>
@@ -225,11 +236,13 @@ window.toggleNotifications = async function () {
                 // Update badge
                 const unread = data.data.filter(n => !n.is_read).length;
                 const badge = document.getElementById('bell-badge');
-                if (unread > 0) {
-                    badge.textContent = unread;
-                    badge.style.display = 'flex';
-                } else {
-                    badge.style.display = 'none';
+                if (badge) {
+                    if (unread > 0) {
+                        badge.textContent = unread;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
                 }
             } else {
                 list.innerHTML = `<div class="text-center text-muted" style="font-size:13px; padding:20px 0;">No new notifications.</div>`;
@@ -239,6 +252,25 @@ window.toggleNotifications = async function () {
         panel.style.display = 'none';
     }
 }
+
+// Fetch unread count for the navbar bell badge
+window.updateNotificationCount = async function () {
+    const badge = document.getElementById('bell-badge');
+    if (!badge) return;
+
+    try {
+        const data = await apiFetch('/api/notifications');
+        const unread = (data.data || []).filter(n => !n.is_read).length;
+        if (unread > 0) {
+            badge.textContent = unread;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (e) {
+        // Don't spam toasts for background badge fetch
+    }
+};
 
 // Global layout styles dynamically injected since they are highly structural to this layout
 function initLayoutStyles() {

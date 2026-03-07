@@ -52,9 +52,9 @@ async function setupDatabase() {
       console.log('✅ No existing tables found');
     }
     
-    // Read and execute the consolidated SQL setup file
-    console.log('\n📋 Running wastesense_db_setup.sql...');
-    const sqlPath = path.join(__dirname, 'wastesense_db_setup.sql');
+    // Read and execute the consolidated SQL dump (project root)
+    console.log('\n📋 Running wastesense_db.sql...');
+    const sqlPath = path.join(__dirname, '..', 'wastesense_db.sql');
     const setupSQL = fs.readFileSync(sqlPath, 'utf8');
     
     // Remove DROP/CREATE DATABASE and USE statements (we already created & selected the DB above)

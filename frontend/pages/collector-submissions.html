@@ -446,16 +446,10 @@
                 const imgSrc = d.image_path ? `${d.image_path}` : '../assets/mascot4.png';
                 const imgLabel = d.image_path ? '' : '<div style="font-size:10px; text-align:center; color:#888;">No image provided</div>';
 
-                // Confidence Bar Logic
-                const confScore = d.confidence_score ? parseFloat(d.confidence_score) : 0;
-                let barColor = 'var(--status-collected)'; // Green default
-                if (confScore < 0.6) barColor = 'var(--status-pending)'; // Orange
-                if (confScore < 0.4) barColor = 'var(--status-denied)'; // Red
-
                 let aiBlock = '';
                 if (d.predicted_category) {
-                    const pct = (confScore <= 1 && confScore > 0) ? Math.round(confScore * 100) : Math.round(confScore);
-                    const safePct = Math.min(100, pct);
+                    const safePct = normalizeConfidencePct(d.confidence_score);
+                    const barColor = safePct >= 85 ? 'var(--status-collected)' : safePct >= 60 ? 'var(--status-pending)' : 'var(--status-denied)';
                     aiBlock = `
                         <div style="margin-bottom:8px;">
                             <div style="font-size:11px; font-weight:600; margin-bottom:2px;">AI Suggested: ${d.predicted_category}</div>
@@ -482,7 +476,7 @@
                 if (isMyPickup) {
                     actionBtnHTML = `
                         <div class="d-flex gap-2 mt-2">
-                            <button class="btn gradient-brand w-100" style="padding:6px; font-size:12px; flex:2;" onclick="completeSub(${d.submission_id}, '${escapeHtml(loc)}')">✓ Mark Collected</button>
+                            <button class="btn gradient-brand w-100" style="padding:6px; font-size:12px; flex:2;" onclick="completeSub(${d.submission_id}, ${JSON.stringify(loc)})">✓ Mark Collected</button>
                             <button class="btn nm-inset w-100" style="padding:6px; font-size:12px; flex:1; border:1px solid var(--status-denied); color:var(--status-denied);" onclick="reportProblemSub(${d.submission_id})">Report</button>
                         </div>
                     `;
@@ -494,7 +488,7 @@
                     <div style="min-width:240px; max-width: 260px;">
                         <!-- Top Image -->
                         <div style="width:100%; height:120px; border-radius:var(--radius-sm); overflow:hidden; background:var(--bg-inset); margin-bottom:10px;">
-                            <img src="${imgSrc}" style="width:100%; height:100%; object-fit:cover;" />
+                            <img src=${JSON.stringify(imgSrc)} style="width:100%; height:100%; object-fit:cover;" />
                         </div>
                         ${imgLabel}
                         

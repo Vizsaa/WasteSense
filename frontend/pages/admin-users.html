@@ -485,7 +485,7 @@
                     if (res.status === 'success') { showToast('User updated', 'success'); closePanel(); loadUsers(); }
                 }
             } catch (e) {
-                // Handled in apiFetch implicitly via alert for now, could be toast.
+                // Handled in apiFetch implicitly via toast.
             } finally {
                 btn.disabled = false; btn.textContent = currentMode === 'create' ? 'Create User' : 'Save Changes';
             }
@@ -493,7 +493,12 @@
 
         window.triggerPasswordReset = async function () {
             const id = document.getElementById('editUserId').value;
-            const newPwd = prompt('Enter a new temporary password for this user (Min 6 chars):');
+            const newPwd = await showPromptToast(
+                'Reset Password',
+                'Enter a new temporary password for this user (Min 6 chars):',
+                'New temporary password'
+            );
+            if (newPwd === false) return;
             if (!newPwd || newPwd.trim().length < 6) { return showToast('Password must be 6+ chars', 'error'); }
 
             try {
@@ -534,7 +539,7 @@
         window.exportData = function () {
             let csv = 'ID,Email,Name,Role,Status,BarangayID,Created\n';
             allUsers.forEach(u => {
-                csv += `${u.user_id},${u.email},"${u.full_name || ''}",${u.role},${u.is_active},${u.barangay_id || ''},${u.created_at}\n`;
+                csv += `${u.user_id},${u.email},${JSON.stringify(u.full_name || '')},${u.role},${u.is_active},${u.barangay_id || ''},${u.created_at}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);

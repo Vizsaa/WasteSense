@@ -20,6 +20,8 @@
   /* Primary CTA, active states */
   --brand-emerald: #2E7D32;
   /* Dark green — text on light bg, borders, nav */
+  --brand-blue: #1565C0;
+  /* Blue accent — scheduled/accepted states */
   --brand-bright: #6EE000;
   /* Bright lime — buttons, highlights, FAB */
   --brand-neon: #CCFF00;
@@ -50,6 +52,9 @@
   --status-accepted: #1565C0;
   --status-collected: #2E7D32;
   --status-denied: #C62828;
+  --status-warning: #FF8F00;
+  --status-info: #1565C0;
+  --status-error: #C62828;
 
   /* Border radius — same as before */
   --radius-sm: 8px;
@@ -74,6 +79,8 @@
   /* 12px — labels, badges */
   --text-sm: 0.875rem;
   /* 14px — secondary text */
+  --text-md: 1rem;
+  /* Alias for legacy pages */
   --text-base: 1rem;
   /* 16px — body */
   --text-lg: 1.125rem;
@@ -86,6 +93,11 @@
   /* 30px — page titles */
   --text-4xl: 2.25rem;
   /* 36px — hero/dashboard greeting */
+
+  /* Legacy tokens used by some pages */
+  --text-dark: #0D1F0D;
+  --shadow-raised: 6px 6px 16px var(--shadow-dark), -4px -4px 12px var(--shadow-light);
+  --shadow-inset: inset 4px 4px 10px var(--shadow-dark), inset -3px -3px 8px var(--shadow-light);
 }
 
 /* ========================================================================= */
@@ -957,4 +969,132 @@ button:active,
   background: #C62828;
   color: white;
   border-color: #C62828;
+}
+
+/* ========================================================================= */
+/* LEGACY UTILITY CLASSES (used across pages)                                */
+/* ========================================================================= */
+
+.w-100 {
+  width: 100%;
+}
+
+.custom-radius {
+  border-radius: var(--radius-lg);
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fw-700 {
+  font-weight: 700;
+}
+
+.fw-800 {
+  font-weight: 800;
+}
+
+.text-lime {
+  color: var(--brand-lime);
+}
+
+.text-emerald {
+  color: var(--brand-emerald);
+}
+
+.text-warning {
+  color: var(--status-warning);
+}
+
+.text-error,
+.text-danger {
+  color: var(--status-error);
+}
+
+.border {
+  border: 1px solid rgba(46, 125, 50, 0.15);
+}
+
+/* Container + padding helpers used by a few pages */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+.p-0 { padding: 0; }
+.p-4 { padding: var(--space-4); }
+.pb-5 { padding-bottom: var(--space-10); }
+.pt-3 { padding-top: var(--space-6); }
+
+/* Inputs/buttons referenced as "light" variants */
+.input-light {
+  background: var(--bg-inset);
+  border: 1px solid rgba(46, 125, 50, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+}
+
+.btn-secondary {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  border: 1px solid rgba(46, 125, 50, 0.2);
+}
+
+.btn-small {
+  height: 34px;
+  padding: 0 12px;
+  font-size: var(--text-xs);
+  border-radius: var(--radius-pill);
+}
+
+/* Status badge aliases used by pages */
+.badge-scheduled {
+  background: rgba(21, 101, 192, 0.10);
+  color: #1565C0;
+  border: 1px solid rgba(21, 101, 192, 0.25);
+}
+
+.badge-read {
+  background: rgba(46, 125, 50, 0.10);
+  color: #2E7D32;
+  border: 1px solid rgba(46, 125, 50, 0.25);
+}
+
+.badge-unread {
+  background: rgba(255, 143, 0, 0.12);
+  color: #E65100;
+  border: 1px solid rgba(255, 143, 0, 0.3);
+}
+
+/* 4-column grid used by collector/admin dashboards */
+.card-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+}
+
+@media (max-width: 768px) {
+  .card-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Simple inline spinner used in a few buttons */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(61, 107, 61, 0.25);
+  border-top-color: var(--brand-lime);
+  border-radius: 50%;
+  animation: ws-spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes ws-spin {
+  to { transform: rotate(360deg); }
 }

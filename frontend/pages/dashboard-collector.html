@@ -323,7 +323,7 @@
 
                 return `
                     <div class="nm-raised route-card custom-radius">
-                        <div id="${mapId}" class="map-thumb" data-lat="${r.latitude || 14.5995}" data-lng="${r.longitude || 120.9842}"></div>
+                        <div id=${JSON.stringify(mapId)} class="map-thumb" data-lat=${JSON.stringify(r.latitude || 14.5995)} data-lng=${JSON.stringify(r.longitude || 120.9842)}></div>
                         <div class="route-content">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div style="font-weight:700; font-size:var(--text-md);">${r.full_name || 'Resident'}</div>
@@ -339,7 +339,7 @@
                             </div>
                             
                             <div class="mt-auto d-flex gap-2">
-                                <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:var(--text-xs);" onclick="openMapModal(${r.latitude}, ${r.longitude}, '${encodeURIComponent(address)}')">Full Map</button>
+                                <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:var(--text-xs);" onclick="openMapModal(${r.latitude}, ${r.longitude}, ${JSON.stringify(encodeURIComponent(address))})">Full Map</button>
                                 <a href="collector-submissions.html" class="btn gradient-brand" style="flex:1; background:var(--brand-emerald); color:white; padding:6px; font-size:var(--text-xs); text-align:center;">Manage</a>
                             </div>
                         </div>

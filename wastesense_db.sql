@@ -338,9 +338,9 @@ CREATE TABLE `waste_submissions` (
 
 INSERT INTO `waste_submissions` (`submission_id`, `user_id`, `collector_id`, `image_path`, `predicted_category`, `confidence_score`, `confirmed_category`, `waste_types`, `waste_adjective`, `waste_adjectives`, `waste_description`, `latitude`, `longitude`, `address_description`, `barangay_id`, `collection_status`, `scheduled_date`, `created_at`, `collected_at`, `collector_notes`, `problem_type`, `problem_description`, `has_problem`) VALUES
 (1, 6, 5, NULL, NULL, NULL, 'biodegradable', '[\"biodegradable\"]', NULL, NULL, 'Test submission', 14.60000000, 120.98000000, 'Test Address', 1, 'scheduled', NULL, '2026-03-03 00:53:05', NULL, NULL, NULL, NULL, 0),
-(2, 7, 5, '/uploads/recyclable Waste-1772809423119-403976590.jpg', 'recyclable', 59.00, NULL, '[\"recyclable\"]', NULL, '[\"dry\"]', 'Detected as recyclable waste with 59% confidence', 14.32617000, 121.08103700, NULL, 1, 'collected', NULL, '2026-03-06 15:03:43', '2026-03-07 04:02:54', 'Picked up as scheduled', NULL, NULL, 0),
+(2, 7, 5, NULL, 'recyclable', 59.00, NULL, '[\"recyclable\"]', NULL, '[\"dry\"]', 'Detected as recyclable waste with 59% confidence', 14.32617000, 121.08103700, NULL, 1, 'collected', NULL, '2026-03-06 15:03:43', '2026-03-07 04:02:54', 'Picked up as scheduled', NULL, NULL, 0),
 (10, 31, NULL, NULL, NULL, NULL, 'biodegradable', '[\"biodegradable\"]', NULL, NULL, 'Test submission for sanity check', 14.58950000, 120.98160000, 'Test Address, Manila', 1, 'collected', NULL, '2026-03-07 00:29:35', '2026-03-07 00:29:35', NULL, NULL, NULL, 0),
-(11, 7, NULL, '/uploads/paperwaste-1772847185457-105111447.png', 'mixed', 30.00, NULL, '[\"mixed\"]', NULL, '[\"mixed\"]', NULL, 14.32616960, 121.08103680, NULL, 1, 'pending', NULL, '2026-03-07 01:33:05', NULL, NULL, NULL, NULL, 0),
+(11, 7, NULL, NULL, 'mixed', 30.00, NULL, '[\"mixed\"]', NULL, '[\"mixed\"]', NULL, 14.32616960, 121.08103680, NULL, 1, 'pending', NULL, '2026-03-07 01:33:05', NULL, NULL, NULL, NULL, 0),
 (12, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 04:31:12', NULL, NULL, NULL, NULL, 0),
 (13, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 04:31:12', NULL, NULL, NULL, NULL, 0),
 (14, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 05:52:37', NULL, NULL, NULL, NULL, 0),
@@ -356,7 +356,7 @@ INSERT INTO `waste_submissions` (`submission_id`, `user_id`, `collector_id`, `im
 (25, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 06:23:17', NULL, NULL, NULL, NULL, 0),
 (26, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 06:23:45', NULL, NULL, NULL, NULL, 0),
 (27, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 06:24:40', NULL, NULL, NULL, NULL, 0),
-(28, 10002, NULL, '/uploads/mascot1-1772865886133-623371379.png', 'hazardous', 97.00, NULL, '[\"hazardous\"]', NULL, '[\"dry\"]', NULL, NULL, NULL, 'Waste item', 1, 'pending', NULL, '2026-03-07 06:44:46', NULL, NULL, NULL, NULL, 0),
+(28, 10002, NULL, NULL, 'hazardous', 97.00, NULL, '[\"hazardous\"]', NULL, '[\"dry\"]', NULL, NULL, NULL, 'Waste item', 1, 'pending', NULL, '2026-03-07 06:44:46', NULL, NULL, NULL, NULL, 0),
 (29, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'pending', NULL, '2026-03-07 06:46:34', NULL, NULL, NULL, NULL, 0),
 (30, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'pending', NULL, '2026-03-07 06:47:39', NULL, NULL, NULL, NULL, 0),
 (31, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'scheduled', NULL, '2026-03-07 06:48:19', NULL, NULL, NULL, NULL, 0),
@@ -364,7 +364,7 @@ INSERT INTO `waste_submissions` (`submission_id`, `user_id`, `collector_id`, `im
 (33, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'scheduled', NULL, '2026-03-07 06:49:06', NULL, NULL, NULL, NULL, 0),
 (34, 2, 10021, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'scheduled', NULL, '2026-03-07 06:49:42', NULL, NULL, 'Resident Not Home', 'Knocked 3 times', 1),
 (35, 2, 10021, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'collected', NULL, '2026-03-07 06:49:42', '2026-03-07 06:49:42', 'Left a green bin', NULL, NULL, 0),
-(36, 10025, 10031, '/uploads/biodegradable-1772869781912-699108736.png', 'non-biodegradable', 77.00, NULL, '[\"non-biodegradable\"]', NULL, '[\"dry\"]', NULL, 14.47103031, 121.05813289, 'Manuel L. Quezon Avenue, Taguig District 1', 7, 'collected', NULL, '2026-03-07 07:49:41', '2026-03-07 08:30:47', NULL, NULL, NULL, 0);
+(36, 10025, 10031, NULL, 'non-biodegradable', 77.00, NULL, '[\"non-biodegradable\"]', NULL, '[\"dry\"]', NULL, 14.47103031, 121.05813289, 'Manuel L. Quezon Avenue, Taguig District 1', 7, 'collected', NULL, '2026-03-07 07:49:41', '2026-03-07 08:30:47', NULL, NULL, NULL, 0);
 
 --
 -- Indexes for dumped tables

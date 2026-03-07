@@ -221,18 +221,26 @@
                 // Render Recent
                 const recentContainer = document.getElementById('recentSubmissionsContainer');
                 if (submissions.length > 0) {
-                    recentContainer.innerHTML = submissions.slice(0, 3).map(sub => `
-                        <div class="recent-list-item nm-flat">
-                            <div class="recent-info">
-                                <div style="font-size:24px;">${getWasteEmoji(sub.category_name)}</div>
-                                <div>
-                                    <div style="font-weight:600;">${sub.pickup_address.split(',')[0]}</div>
-                                    <div class="text-muted" style="font-size:var(--text-xs);">${new Date(sub.created_at).toLocaleDateString()}</div>
+                    recentContainer.innerHTML = submissions.slice(0, 3).map(sub => {
+                        const status = String(sub.collection_status || 'pending').toLowerCase();
+                        const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+                        const mainCat = sub.category_name || sub.confirmed_category || sub.predicted_category || 'mixed';
+                        const address = sub.address_description || sub.barangay_name || 'No address';
+                        const addressTitle = String(address).split(',')[0] || address;
+
+                        return `
+                            <div class="recent-list-item nm-flat">
+                                <div class="recent-info">
+                                    <div style="font-size:24px;">${getWasteEmoji(mainCat)}</div>
+                                    <div>
+                                        <div style="font-weight:600;">${escapeHtml(addressTitle)}</div>
+                                        <div class="text-muted" style="font-size:var(--text-xs);">${new Date(sub.created_at).toLocaleDateString()}</div>
+                                    </div>
                                 </div>
+                                <div class="badge badge-${status}">${statusLabel}</div>
                             </div>
-                            <div class="badge badge-${sub.collection_status.toLowerCase()}">${sub.collection_status.charAt(0).toUpperCase() + sub.collection_status.slice(1)}</div>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 } else {
                     recentContainer.innerHTML = `<div style="text-align:center; padding:var(--space-6);">
                         <img src="../assets/mascot2.png" alt="Empty" class="mascot mascot-sm mb-3">

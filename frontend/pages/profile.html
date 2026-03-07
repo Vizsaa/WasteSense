@@ -164,7 +164,7 @@
                 document.getElementById('avatarInitials').textContent = initials;
 
                 if (user.profile_picture) {
-                    document.getElementById('avatar').innerHTML = `<img src="${user.profile_picture}" alt="Avatar">`;
+                    document.getElementById('avatar').innerHTML = `<img src=${JSON.stringify(user.profile_picture)} alt="Avatar">`;
                 }
             } catch (error) {
                 showToast('Failed to sync profile data from server.', 'error');

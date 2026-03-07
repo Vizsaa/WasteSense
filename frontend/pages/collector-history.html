@@ -97,7 +97,7 @@
 
                     let flagHtml = `<span class="badge" style="background:var(--bg-inset); color:var(--text-muted);">Clear</span>`;
                     if (d.has_problem) {
-                        flagHtml = `<span class="badge" style="background:var(--status-denied); color:white;" title="${escapeHtml(d.problem_description || '')}">⚠️ ${escapeHtml(d.problem_type)}</span>`;
+                        flagHtml = `<span class="badge" style="background:var(--status-denied); color:white;" title=${JSON.stringify(escapeHtml(d.problem_description || ''))}>⚠️ ${escapeHtml(d.problem_type)}</span>`;
                     }
 
                     return `

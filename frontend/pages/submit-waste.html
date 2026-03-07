@@ -759,7 +759,7 @@
                 const sel = document.getElementById('barangaySelect');
                 if (res.data && res.data.length > 0) {
                     sel.innerHTML = '<option value="">Select your area</option>' +
-                        res.data.map(b => `<option value="${b.location_id}">${b.barangay_name}, ${b.municipality}</option>`).join('');
+                        res.data.map(b => `<option value=${JSON.stringify(b.location_id)}>${b.barangay_name}, ${b.municipality}</option>`).join('');
                 }
                 if (userBarangayId) {
                     sel.value = userBarangayId;
@@ -779,7 +779,7 @@
                 if (res.data && res.data.length > 0) {
                     cont.innerHTML = res.data.map(cat => `
                         <label class="selectable-card" id="card_cat_${cat.category_key}">
-                            <input type="checkbox" name="waste_types" value="${cat.category_key}" onchange="toggleCard(this)">
+                            <input type="checkbox" name="waste_types" value=${JSON.stringify(cat.category_key)} onchange="toggleCard(this)">
                             ${emojis[cat.category_key] || '📦'} ${cat.display_name}
                         </label>
                     `).join('');
@@ -791,7 +791,7 @@
             const cont = document.getElementById('adjectivesContainer');
             cont.innerHTML = adjectivesList.map(a => `
                 <label class="selectable-card" id="card_adj_${a.val}">
-                    <input type="checkbox" name="waste_adjectives" value="${a.val}" onchange="toggleCard(this)">
+                    <input type="checkbox" name="waste_adjectives" value=${JSON.stringify(a.val)} onchange="toggleCard(this)">
                     ${a.label}
                 </label>
             `).join('');
@@ -930,7 +930,7 @@
 
                 if (serverResult && serverResult.predicted_category !== 'mixed') {
                     bestCat = serverResult.predicted_category;
-                    conf = Math.round((serverResult.confidence_score || 0.5) * 100);
+                    conf = normalizeConfidencePct(serverResult.confidence_score ?? 0.5);
                     adj = serverResult.adjective || 'mixed';
                     rawLabels = serverResult.raw_labels || [];
                     description = serverResult.description || '';
@@ -984,6 +984,7 @@
             resCard.classList.add('show');
             document.getElementById('predictedEmoji').textContent = emojis[aiPrediction.category] || '📦';
             document.getElementById('predictedCategory').textContent = aiPrediction.category.toUpperCase();
+            aiPrediction.confidence = normalizeConfidencePct(aiPrediction.confidence);
             document.getElementById('predictionConfidence').textContent = aiPrediction.confidence;
 
             // Confidence bar
@@ -1015,14 +1016,14 @@
             });
 
             // Auto check cat
-            const catInp = document.querySelector(`input[name="waste_types"][value="${aiPrediction.category}"]`);
+            const catInp = document.querySelector(`input[name="waste_types"][value=${aiPrediction.category}]`);
             if (catInp) {
                 catInp.checked = true;
                 catInp.parentElement.classList.add('selected');
             }
 
             // Auto check adj
-            const adjInp = document.querySelector(`input[name="waste_adjectives"][value="${aiPrediction.adjective}"]`);
+            const adjInp = document.querySelector(`input[name="waste_adjectives"][value=${aiPrediction.adjective}]`);
             if (adjInp) {
                 adjInp.checked = true;
                 adjInp.parentElement.classList.add('selected');
@@ -1091,30 +1092,46 @@
 
             // Geocode txt
             document.getElementById('geocodeBtn').addEventListener('click', async () => {
-                const raw = document.getElementById('addressDescription').value;
-                const bSelect = document.getElementById('barangaySelect');
-                const bName = bSelect.selectedIndex > 0 ? bSelect.options[bSelect.selectedIndex].text : '';
-                const query = raw + (bName ? `, ${bName}` : '');
-
-                if (query.length < 5) return;
-
-                const st = document.getElementById('geocodeStatus');
-                st.textContent = "Searching map...";
-
-                try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Philippines')}&limit=1`);
-                    const data = await res.json();
-                    if (data && data.length > 0) {
-                        document.getElementById('latitude').value = data[0].lat;
-                        document.getElementById('longitude').value = data[0].lon;
-                        updateMapPin(data[0].lat, data[0].lon);
-                        st.textContent = "Map updated from address.";
-                        st.style.color = "var(--brand-emerald)";
-                    } else {
-                        st.textContent = "Address not found on map.";
-                    }
-                } catch (e) { }
+                const ok = await geocodeAndSetPin();
+                if (!ok) showToast('Address not found. Try adding a landmark or dropping a pin on the map.', 'warning');
             });
+        }
+
+        async function geocodeAndSetPin() {
+            const raw = document.getElementById('addressDescription').value.trim();
+            const bSelect = document.getElementById('barangaySelect');
+            const bName = bSelect.selectedIndex > 0 ? bSelect.options[bSelect.selectedIndex].text : '';
+            const query = (raw + (bName ? `, ${bName}` : '')).trim();
+
+            const st = document.getElementById('geocodeStatus');
+            if (query.length < 5) {
+                st.textContent = "Enter a more specific address (or use GPS / drop a pin).";
+                st.style.color = "var(--status-warning)";
+                return false;
+            }
+
+            st.textContent = "Searching map...";
+            st.style.color = "var(--text-muted)";
+
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', Philippines')}&limit=1`);
+                const data = await res.json();
+                if (data && data.length > 0) {
+                    document.getElementById('latitude').value = data[0].lat;
+                    document.getElementById('longitude').value = data[0].lon;
+                    updateMapPin(data[0].lat, data[0].lon);
+                    st.textContent = "Map updated from address.";
+                    st.style.color = "var(--brand-emerald)";
+                    return true;
+                }
+                st.textContent = "Address not found on map.";
+                st.style.color = "var(--status-warning)";
+                return false;
+            } catch (e) {
+                st.textContent = "Geocoding failed. Please try again.";
+                st.style.color = "var(--status-warning)";
+                return false;
+            }
         }
 
         function updateMapPin(lat, lng) {
@@ -1130,7 +1147,28 @@
         document.getElementById('wasteForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            if (!imageFile) return;
+            if (!imageFile) { showToast('Please upload a photo first.', 'warning'); return; }
+
+            const cats = document.querySelectorAll('input[name="waste_types"]:checked');
+            const adjs = document.querySelectorAll('input[name="waste_adjectives"]:checked');
+            if (cats.length === 0) { showToast('Select a main waste category', 'warning'); return; }
+            if (adjs.length === 0) { showToast('Select at least one property', 'warning'); return; }
+
+            const barangayId = document.getElementById('barangaySelect').value;
+            if (!barangayId) { showToast('Please select your barangay.', 'warning'); return; }
+
+            // Ensure coordinates exist before sending (geocode if address is available)
+            let lat = document.getElementById('latitude').value;
+            let lng = document.getElementById('longitude').value;
+            if (!lat || !lng) {
+                const ok = await geocodeAndSetPin();
+                if (!ok) {
+                    showToast('Please set your pickup location using GPS, Map Address, or by dropping a pin.', 'warning');
+                    return;
+                }
+                lat = document.getElementById('latitude').value;
+                lng = document.getElementById('longitude').value;
+            }
 
             const formObj = new FormData();
             formObj.append('image', imageFile); // Rely on server compressing OR future client canvas compress
@@ -1143,11 +1181,9 @@
             formObj.append('waste_adjectives', JSON.stringify(adjs));
 
             formObj.append('waste_description', document.getElementById('wasteDescription').value);
-            formObj.append('barangay_id', document.getElementById('barangaySelect').value);
+            formObj.append('barangay_id', barangayId);
             formObj.append('address_description', document.getElementById('addressDescription').value);
 
-            const lat = document.getElementById('latitude').value;
-            const lng = document.getElementById('longitude').value;
             if (lat && lng) { formObj.append('latitude', lat); formObj.append('longitude', lng); }
 
             // UI Overlay

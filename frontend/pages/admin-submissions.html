@@ -215,7 +215,7 @@
                     let mapAct = '<span class="text-muted text-xs">No Geo</span>';
                     if (s.latitude && s.longitude) {
                         const mUrl = `https://www.google.com/maps?q=${encodeURIComponent(s.latitude)},${encodeURIComponent(s.longitude)}`;
-                        mapAct = `<a href="${mUrl}" target="_blank" class="btn btn-small nm-inset" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:4px 10px;"><span style="color:var(--brand-blue);">📍</span> GIS</a>`;
+                        mapAct = `<a href=${JSON.stringify(mUrl)} target="_blank" class="btn btn-small nm-inset" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:4px 10px;"><span style="color:var(--brand-blue);">📍</span> GIS</a>`;
                     }
 
                     return `
@@ -228,7 +228,7 @@
                                 <div class="fw-600">${escapeHtml(s.full_name || 'Anonymous')}</div>
                                 <div class="text-xs text-secondary mt-1">${escapeHtml(locText)}</div>
                             </td>
-                            <td class="text-secondary text-sm" style="max-width:300px; white-space:normal;" title="${escapeHtml(desc)}">
+                            <td class="text-secondary text-sm" style="max-width:300px; white-space:normal;" title=${JSON.stringify(escapeHtml(desc))}>
                                 ${escapeHtml(descTrunc)}
                             </td>
                             <td>${mapAct}</td>

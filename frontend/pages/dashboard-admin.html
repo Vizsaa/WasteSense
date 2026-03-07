@@ -340,8 +340,12 @@
                                     <div style="font-size:11px; color:var(--text-muted);">${new Date(r.created_at).toLocaleString()}</div>
                                 </div>
                                 <div class="d-flex gap-2" style="margin-top:4px;">
-                                    <button class="btn btn-ghost" style="padding:6px; font-size:16px; width:32px; height:32px; display:flex; align-items:center; justify-content:center;" onclick="handleDenyRequest(${r.request_id}, '${r.request_type}', '${escapeHtml(r.full_name || 'User')}')" title="Deny Request">✖</button>
-                                    <button class="btn gradient-brand text-dark" style="padding:6px; font-size:16px; width:32px; height:32px; display:flex; align-items:center; justify-content:center;" onclick="handleAcceptRequest(${r.request_id}, '${r.request_type}', '${escapeHtml(r.full_name || 'User')}', '${escapeHtml(r.email)}', decodeURIComponent('${encodeURIComponent(r.metadata || '{}')}'))" title="Approve Request">✓</button>
+                                    <button class="btn btn-ghost" style="padding:6px; font-size:16px; width:32px; height:32px; display:flex; align-items:center; justify-content:center;"
+                                        onclick="handleDenyRequest(${r.request_id}, ${JSON.stringify(r.request_type)}, ${JSON.stringify(escapeHtml(r.full_name || 'User'))})"
+                                        title="Deny Request">✖</button>
+                                    <button class="btn gradient-brand text-dark" style="padding:6px; font-size:16px; width:32px; height:32px; display:flex; align-items:center; justify-content:center;"
+                                        onclick="handleAcceptRequest(${r.request_id}, ${JSON.stringify(r.request_type)}, ${JSON.stringify(escapeHtml(r.full_name || 'User'))}, ${JSON.stringify(escapeHtml(r.email))}, ${JSON.stringify(r.metadata || '{}')})"
+                                        title="Approve Request">✓</button>
                                 </div>
                             </div>
                             

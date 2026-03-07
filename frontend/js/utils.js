@@ -57,14 +57,31 @@ function getGreeting(name) {
  */
 function showSkeletonList(container, count = 3, type = 'card') {
     if (!container) return;
+    const cols = Number(arguments[3] || 3);
+
     let html = '';
     for (let i = 0; i < count; i++) {
+        const stagger = `stagger-${(i % 4) + 1}`;
+
         if (type === 'card') {
-            html += `<div class="skeleton skeleton-card nm-raised mb-3 w-100 stagger-${(i % 4) + 1}"></div>`;
-        } else {
-            html += `<div class="skeleton skeleton-text w-100 stagger-${(i % 4) + 1}" style="height: 40px;"></div>`;
+            html += `<div class="skeleton skeleton-card nm-raised mb-3 w-100 ${stagger}"></div>`;
+            continue;
         }
+
+        if (type === 'table') {
+            const safeCols = Number.isFinite(cols) && cols > 0 ? Math.floor(cols) : 3;
+            html += '<tr>';
+            for (let c = 0; c < safeCols; c++) {
+                html += `<td><div class="skeleton skeleton-text w-100 ${stagger}" style="height: 18px;"></div></td>`;
+            }
+            html += '</tr>';
+            continue;
+        }
+
+        // 'row' or default
+        html += `<div class="skeleton skeleton-text w-100 ${stagger}" style="height: 40px;"></div>`;
     }
+
     container.innerHTML = html;
 }
 
@@ -199,8 +216,7 @@ window.showConfirmDialog = function (config, onConfirm, onCancel) {
         ? `<div class="typed-confirm-wrap">
          <label class="typed-confirm-label">${config.typedConfirmPrompt}:</label>
          <input type="text" id="typedConfirmInput" class="typed-confirm-input nm-inset"
-                placeholder="${config.typedConfirmValue}"
-                oninput="checkTypedConfirm('${config.typedConfirmValue}')">
+                placeholder=${JSON.stringify(config.typedConfirmValue)}>
        </div>`
         : '';
 
@@ -209,7 +225,7 @@ window.showConfirmDialog = function (config, onConfirm, onCancel) {
       <div class="dialog-icon" style="background:${config.iconBg}">${config.icon}</div>
       <h3 class="dialog-title">${config.title}</h3>
       ${warningBannerHTML}
-      <p class="dialog-body">${config.body}</p>
+      <div class="dialog-body">${config.body}</div>
       <p class="dialog-detail">${config.detail || ''}</p>
       ${typedConfirmHTML}
       <div class="dialog-actions">
@@ -225,6 +241,14 @@ window.showConfirmDialog = function (config, onConfirm, onCancel) {
   `;
 
     document.body.appendChild(overlay);
+
+    // Typed confirm: attach input listener (avoid inline handlers)
+    if (config.requireTypedConfirm) {
+        const input = overlay.querySelector('#typedConfirmInput');
+        if (input) {
+            input.addEventListener('input', () => checkTypedConfirm(config.typedConfirmValue));
+        }
+    }
 
     // Close on backdrop click
     overlay.addEventListener('click', (e) => {
@@ -284,6 +308,14 @@ function timeAgo(dateParam) {
     return "just now";
 }
 
+// Normalize confidence scores to 0..100 percentage (handles 0..1 or 0..100 inputs)
+window.normalizeConfidencePct = function (raw) {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 0;
+    const pct = (n > 1) ? n : (n * 100);
+    return Math.min(100, Math.round(pct));
+};
+
 /**
  * Display a Prompt Toast with a Custom Textarea for Notes
  * @param {string} title
@@ -307,7 +339,7 @@ window.showPromptToast = function (title, message, textareaPlaceholder = 'Notes 
         toast.innerHTML = `
             <div style="font-weight: 700; margin-bottom: 4px;">${title}</div>
             <div style="font-size: 13px; margin-bottom: 12px; opacity: 0.9;">${message}</div>
-            <textarea id="toast-prompt-textarea" placeholder="${textareaPlaceholder}" style="width: 100%; min-height: 60px; margin-bottom: 12px; font-size: 12px; padding: 8px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: var(--bg-inset); color: var(--text-primary);"></textarea>
+            <textarea id="toast-prompt-textarea" placeholder=${JSON.stringify(textareaPlaceholder)} style="width: 100%; min-height: 60px; margin-bottom: 12px; font-size: 12px; padding: 8px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); background: var(--bg-inset); color: var(--text-primary);"></textarea>
             <div class="d-flex gap-2">
                 <button class="btn btn-ghost" id="toast-cancel-btn" style="flex:1; height:36px; border:1px solid rgba(0,0,0,0.1); border-radius:4px;">Cancel</button>
                 <button class="btn gradient-brand" id="toast-confirm-btn" style="flex:1; height:36px; border-radius:4px; color:white;">Confirm</button>
