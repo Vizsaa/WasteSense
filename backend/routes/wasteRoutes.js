@@ -22,6 +22,11 @@ router.get('/pending', wasteController.getPendingSubmissions);
 // Get submissions assigned to the logged-in collector
 router.get('/assigned', wasteController.getAssignedSubmissions);
 
+// Collector metrics and history
+// NOTE: Keep these BEFORE `/:id` to avoid route shadowing.
+router.get('/collector/history', wasteController.getCollectorHistory);
+router.get('/collector/stats', wasteController.getCollectorStats);
+
 // Admin: get all submissions (any status)
 router.get('/all', wasteController.getAllSubmissionsAdmin);
 
@@ -30,10 +35,6 @@ router.get('/:id', wasteController.getSubmission);
 
 // Update submission
 router.put('/:id', wasteController.updateSubmission);
-
-// Collector metrics and history
-router.get('/collector/history', wasteController.getCollectorHistory);
-router.get('/collector/stats', wasteController.getCollectorStats);
 
 // Collector actions
 router.post('/:id/accept', wasteController.acceptSubmission);
