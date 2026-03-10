@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 07, 2026 at 09:49 AM
+-- Generation Time: Mar 10, 2026 at 11:51 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -112,7 +112,10 @@ INSERT INTO `notifications` (`notification_id`, `user_id`, `schedule_id`, `notif
 (18, 2, NULL, 'schedule_change', 'Your waste collection request has been accepted and scheduled.', 0, '2026-03-07 06:49:42'),
 (19, 2, NULL, 'system', 'Your waste collection request has been marked as collected. Thank you for participating!', 0, '2026-03-07 06:49:42'),
 (20, 10025, NULL, 'schedule_change', 'Your waste collection request has been accepted and scheduled.', 0, '2026-03-07 08:22:37'),
-(21, 10025, NULL, 'system', 'Your waste collection request has been marked as collected. Thank you for participating!', 0, '2026-03-07 08:30:47');
+(21, 10025, NULL, 'system', 'Your waste collection request has been marked as collected. Thank you for participating!', 0, '2026-03-07 08:30:47'),
+(22, 7, NULL, 'schedule_change', 'Your waste collection request has been accepted and scheduled.', 0, '2026-03-07 10:07:28'),
+(23, 1, NULL, 'system', 'Collector reported a problem with submission #11: Wrong or incomplete address', 0, '2026-03-07 10:10:04'),
+(24, 10032, NULL, 'schedule_change', 'Your waste collection request has been accepted and scheduled.', 0, '2026-03-10 10:19:20');
 
 -- --------------------------------------------------------
 
@@ -267,8 +270,10 @@ INSERT INTO `users` (`user_id`, `email`, `password_hash`, `force_password_change
 (10027, 'collectorattempt2@gmail.com', '$2b$10$QmrmF/SY.XBxRt9azMm2dOhqtMWvF84jJMiD/wBppKFHej2yrtkJG', 0, 'bagumbayan collector2', 'resident', NULL, NULL, 7, NULL, 1, '2026-03-07 08:00:57', '2026-03-07 08:00:57'),
 (10028, 'forcepw@test.com', '$2b$10$RFz2phAS8m1ARLbvQSWSuu6VSTvMIYqSCBu3I8OeK2phk/SER1TrK', 1, 'ForcePW', 'resident', NULL, NULL, NULL, NULL, 1, '2026-03-07 08:07:50', '2026-03-07 08:07:50'),
 (10029, 'e2e_collector@test.com', '$2b$10$5l4thSnmwNUK8Wfc4L02B.7Cyh92dvjHv5x./ZfGmm5sUBkS8bYF.', 0, 'End to End Collector Test', 'collector', NULL, NULL, 1, NULL, 0, '2026-03-07 08:08:19', '2026-03-07 08:08:19'),
-(10030, 'post_enum@test.com', '$2b$10$0aI2iGUfH68dyXZDWM3jcuF/fwJZHOA/CkxBhK92.Tb0W3IK100fO', 0, 'Post Enum Test', 'collector', NULL, NULL, 1, NULL, 0, '2026-03-07 08:09:16', '2026-03-07 08:09:16'),
-(10031, 'collector3@wastesense.ph', '$2b$10$idICQbFFMBmvWPp5g4sB3.84Enb6KcWQmyDKqD6Cb.YtGtlMBurpK', 0, 'bagumbayan collector3', 'collector', NULL, NULL, 7, NULL, 1, '2026-03-07 08:20:26', '2026-03-07 08:21:03');
+(10030, 'post_enum@test.com', '$2b$10$0aI2iGUfH68dyXZDWM3jcuF/fwJZHOA/CkxBhK92.Tb0W3IK100fO', 0, 'Post Enum Test', 'collector', NULL, NULL, 1, NULL, 0, '2026-03-07 08:09:16', '2026-03-07 10:06:12'),
+(10031, 'collector3@wastesense.ph', '$2b$10$idICQbFFMBmvWPp5g4sB3.84Enb6KcWQmyDKqD6Cb.YtGtlMBurpK', 0, 'bagumbayan collector3', 'collector', NULL, NULL, 7, NULL, 1, '2026-03-07 08:20:26', '2026-03-07 08:21:03'),
+(10032, 'eval.resident.1773166529@wastesense.test', '$2b$10$7zFs8NkG33oGl1irKDotfeFbNHMwzECglkPoaEm8ugmd1MIHtbP02', 0, 'Eval Resident', 'resident', '09171234567', NULL, 1, NULL, 1, '2026-03-10 10:15:29', '2026-03-10 10:15:29'),
+(10033, 'eval.collector@wastesense.test', '$2b$10$RdtHtAZnf3wLJF4zDPNrReKs72pQz5w7nbqSauI1fWclgW5g1aAG6', 0, 'Eval Collector', 'collector', '09170000000', 'Test Address', 1, NULL, 1, '2026-03-10 10:18:39', '2026-03-10 10:18:39');
 
 -- --------------------------------------------------------
 
@@ -338,9 +343,9 @@ CREATE TABLE `waste_submissions` (
 
 INSERT INTO `waste_submissions` (`submission_id`, `user_id`, `collector_id`, `image_path`, `predicted_category`, `confidence_score`, `confirmed_category`, `waste_types`, `waste_adjective`, `waste_adjectives`, `waste_description`, `latitude`, `longitude`, `address_description`, `barangay_id`, `collection_status`, `scheduled_date`, `created_at`, `collected_at`, `collector_notes`, `problem_type`, `problem_description`, `has_problem`) VALUES
 (1, 6, 5, NULL, NULL, NULL, 'biodegradable', '[\"biodegradable\"]', NULL, NULL, 'Test submission', 14.60000000, 120.98000000, 'Test Address', 1, 'scheduled', NULL, '2026-03-03 00:53:05', NULL, NULL, NULL, NULL, 0),
-(2, 7, 5, NULL, 'recyclable', 59.00, NULL, '[\"recyclable\"]', NULL, '[\"dry\"]', 'Detected as recyclable waste with 59% confidence', 14.32617000, 121.08103700, NULL, 1, 'collected', NULL, '2026-03-06 15:03:43', '2026-03-07 04:02:54', 'Picked up as scheduled', NULL, NULL, 0),
+(2, 7, 5, '/uploads/recyclable Waste-1772809423119-403976590.jpg', 'recyclable', 59.00, NULL, '[\"recyclable\"]', NULL, '[\"dry\"]', 'Detected as recyclable waste with 59% confidence', 14.32617000, 121.08103700, NULL, 1, 'collected', NULL, '2026-03-06 15:03:43', '2026-03-07 04:02:54', 'Picked up as scheduled', NULL, NULL, 0),
 (10, 31, NULL, NULL, NULL, NULL, 'biodegradable', '[\"biodegradable\"]', NULL, NULL, 'Test submission for sanity check', 14.58950000, 120.98160000, 'Test Address, Manila', 1, 'collected', NULL, '2026-03-07 00:29:35', '2026-03-07 00:29:35', NULL, NULL, NULL, 0),
-(11, 7, NULL, NULL, 'mixed', 30.00, NULL, '[\"mixed\"]', NULL, '[\"mixed\"]', NULL, 14.32616960, 121.08103680, NULL, 1, 'pending', NULL, '2026-03-07 01:33:05', NULL, NULL, NULL, NULL, 0),
+(11, 7, 34, '/uploads/paperwaste-1772847185457-105111447.png', 'mixed', 30.00, NULL, '[\"mixed\"]', NULL, '[\"mixed\"]', NULL, 14.32616960, 121.08103680, NULL, 1, 'scheduled', NULL, '2026-03-07 01:33:05', NULL, NULL, 'Wrong or incomplete address', NULL, 1),
 (12, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 04:31:12', NULL, NULL, NULL, NULL, 0),
 (13, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 04:31:12', NULL, NULL, NULL, NULL, 0),
 (14, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 05:52:37', NULL, NULL, NULL, NULL, 0),
@@ -356,7 +361,7 @@ INSERT INTO `waste_submissions` (`submission_id`, `user_id`, `collector_id`, `im
 (25, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 06:23:17', NULL, NULL, NULL, NULL, 0),
 (26, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 06:23:45', NULL, NULL, NULL, NULL, 0),
 (27, 2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3, 'pending', NULL, '2026-03-07 06:24:40', NULL, NULL, NULL, NULL, 0),
-(28, 10002, NULL, NULL, 'hazardous', 97.00, NULL, '[\"hazardous\"]', NULL, '[\"dry\"]', NULL, NULL, NULL, 'Waste item', 1, 'pending', NULL, '2026-03-07 06:44:46', NULL, NULL, NULL, NULL, 0),
+(28, 10002, NULL, '/uploads/mascot1-1772865886133-623371379.png', 'hazardous', 97.00, NULL, '[\"hazardous\"]', NULL, '[\"dry\"]', NULL, NULL, NULL, 'Waste item', 1, 'pending', NULL, '2026-03-07 06:44:46', NULL, NULL, NULL, NULL, 0),
 (29, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'pending', NULL, '2026-03-07 06:46:34', NULL, NULL, NULL, NULL, 0),
 (30, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'pending', NULL, '2026-03-07 06:47:39', NULL, NULL, NULL, NULL, 0),
 (31, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'scheduled', NULL, '2026-03-07 06:48:19', NULL, NULL, NULL, NULL, 0),
@@ -364,7 +369,8 @@ INSERT INTO `waste_submissions` (`submission_id`, `user_id`, `collector_id`, `im
 (33, 2, NULL, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'scheduled', NULL, '2026-03-07 06:49:06', NULL, NULL, NULL, NULL, 0),
 (34, 2, 10021, NULL, 'Organic', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'scheduled', NULL, '2026-03-07 06:49:42', NULL, NULL, 'Resident Not Home', 'Knocked 3 times', 1),
 (35, 2, 10021, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1, 'collected', NULL, '2026-03-07 06:49:42', '2026-03-07 06:49:42', 'Left a green bin', NULL, NULL, 0),
-(36, 10025, 10031, NULL, 'non-biodegradable', 77.00, NULL, '[\"non-biodegradable\"]', NULL, '[\"dry\"]', NULL, 14.47103031, 121.05813289, 'Manuel L. Quezon Avenue, Taguig District 1', 7, 'collected', NULL, '2026-03-07 07:49:41', '2026-03-07 08:30:47', NULL, NULL, NULL, 0);
+(36, 10025, 10031, '/uploads/biodegradable-1772869781912-699108736.png', 'non-biodegradable', 77.00, NULL, '[\"non-biodegradable\"]', NULL, '[\"dry\"]', NULL, 14.47103031, 121.05813289, 'Manuel L. Quezon Avenue, Taguig District 1', 7, 'collected', NULL, '2026-03-07 07:49:41', '2026-03-07 08:30:47', NULL, NULL, NULL, 0),
+(37, 10032, 10033, '/uploads/mascot1-1773137792369-600846589.png', 'mixed', 0.75, NULL, '[\"[\\\\\"]', NULL, '[\"[\\\\\"]', 'Eval submission from script', 14.59950000, 120.98420000, 'Eval Street 123, Barangay Poblacion', 1, 'scheduled', NULL, '2026-03-10 10:16:32', NULL, NULL, NULL, NULL, 0);
 
 --
 -- Indexes for dumped tables
@@ -476,7 +482,7 @@ ALTER TABLE `locations`
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `password_reset_requests`
@@ -500,7 +506,7 @@ ALTER TABLE `schedules`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10032;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10034;
 
 --
 -- AUTO_INCREMENT for table `waste_categories`
@@ -512,7 +518,7 @@ ALTER TABLE `waste_categories`
 -- AUTO_INCREMENT for table `waste_submissions`
 --
 ALTER TABLE `waste_submissions`
-  MODIFY `submission_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
+  MODIFY `submission_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- Constraints for dumped tables
