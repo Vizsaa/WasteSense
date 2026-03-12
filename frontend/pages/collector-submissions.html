@@ -343,9 +343,18 @@
                 ]);
 
                 const pending = (pendingRes.data || []).map(d => ({ ...d, viewMode: 'pending' }));
-                const assigned = (assignedRes.data || []).filter(d => d.collection_status === 'scheduled').map(d => ({ ...d, viewMode: 'scheduled' }));
+                const assigned = (assignedRes.data || []).filter(d => d.collection_status === 'scheduled' || d.collection_status === 'collected').map(d => ({ ...d, viewMode: 'scheduled' }));
 
                 allData = [...pending, ...assigned];
+
+                if (optimizedRouteMode) {
+                    // Update optimizedSequence with new data from allData to reflect status changes (like 'collected')
+                    optimizedSequence = optimizedSequence.map(item => {
+                        const newData = allData.find(d => d.submission_id === item.submission_id);
+                        return newData ? { ...newData, routeDistanceKm: item.routeDistanceKm } : item;
+                    });
+                }
+
                 renderUI();
 
             } catch (e) {
@@ -359,6 +368,11 @@
             // Step 1: Mode filter
             if (currentFilter !== 'all') {
                 filtered = filtered.filter(d => d.viewMode === currentFilter);
+            }
+
+            // Filter out already collected items unless we're in optimization mode
+            if (!optimizedRouteMode) {
+                filtered = filtered.filter(d => d.collection_status !== 'collected');
             }
 
             // Step 2: Category filter
@@ -415,14 +429,17 @@
                 const cat = d.confirmed_category || d.predicted_category || 'mixed';
                 const emoji = getEmoji(cat);
                 const isMyPickup = d.viewMode === 'scheduled';
-                const markerColor = isMyPickup ? '#10B981' : '#6366F1'; // Emerald for mine, Indigo for pending
+                const isCollected = d.collection_status === 'collected';
+                const markerColor = isCollected ? '#94A3B8' : (isMyPickup ? '#10B981' : '#6366F1'); // Grey if collected, Emerald for mine, Indigo for pending
 
                 // Route Optimizer logic
                 let routeSequenceLabel = '';
                 if (optimizedRouteMode && isMyPickup) {
                     const idx = optimizedSequence.findIndex(s => s.submission_id === d.submission_id);
                     if (idx > -1) {
-                        routeSequenceLabel = `<div style="position:absolute; top:-10px; right:-10px; background:#1B2E1B; color:#CCFF00; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; border:2px solid white; z-index:100;">${idx + 1}</div>`;
+                        const labelBg = isCollected ? '#64748B' : '#1B2E1B';
+                        const labelColor = isCollected ? '#E2E8F0' : '#CCFF00';
+                        routeSequenceLabel = `<div style="position:absolute; top:-10px; right:-10px; background:${labelBg}; color:${labelColor}; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; border:2px solid white; z-index:100;">${idx + 1}</div>`;
                     }
                 }
 
@@ -473,7 +490,9 @@
                 const residentEmail = escapeHtml(d.email || 'No email');
 
                 let actionBtnHTML = '';
-                if (isMyPickup) {
+                if (isCollected) {
+                    actionBtnHTML = `<div style="background:rgba(255,255,255,0.05); color:var(--text-muted); padding:6px; border-radius:4px; font-size:12px; text-align:center; margin-top:8px; border:1px dashed rgba(255,255,255,0.1);">✓ Already Collected</div>`;
+                } else if (isMyPickup) {
                     actionBtnHTML = `
                         <div class="d-flex gap-2 mt-2">
                             <button class="btn gradient-brand w-100" style="padding:6px; font-size:12px; flex:2;" onclick="completeSub(${d.submission_id}, ${JSON.stringify(loc).replace(/\"/g, '&quot;')})">✓ Mark Collected</button>
@@ -492,7 +511,7 @@
                         </div>
                         ${imgLabel}
                         
-                        <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:var(--brand-emerald);">${isMyPickup ? 'Your Route' : 'Pending Request'}</div>
+                        <div style="font-weight:700; font-size:14px; margin-bottom:4px; color:${isCollected ? 'var(--text-muted)' : (isMyPickup ? 'var(--brand-emerald)' : 'var(--brand-blue)')};">${isCollected ? 'Collected' : (isMyPickup ? 'Your Route' : 'Pending Request')}</div>
                         <div style="font-size:12px; margin-bottom:2px;">📍 ${loc}</div>
                         <div style="font-size:10px; color:#888; margin-bottom:12px;">🕒 Submitted ${createdAgo}</div>
                         
@@ -528,20 +547,25 @@
                 markersGroup.addLayer(marker);
 
                 // Build List Item (add routing index logic)
-                let itemHeaderHtml = isMyPickup ? `<span style="color:var(--brand-emerald);">●</span> Scheduled` : `<span style="color:var(--brand-blue);">●</span> New`;
+                let itemHeaderHtml = isCollected ? `<span style="color:var(--text-muted);">●</span> Collected` : (isMyPickup ? `<span style="color:var(--brand-emerald);">●</span> Scheduled` : `<span style="color:var(--brand-blue);">●</span> New`);
                 let distanceLabel = '';
 
                 if (optimizedRouteMode && isMyPickup) {
                     const idx = optimizedSequence.findIndex(s => s.submission_id === d.submission_id);
-                    itemHeaderHtml = `<span style="color:var(--brand-emerald); font-weight:800; background:rgba(16,185,129,0.15); border-radius:4px; padding:2px 6px; margin-right:4px;">#${idx + 1}</span> Scheduled`;
+                    const seqColor = isCollected ? 'var(--text-muted)' : 'var(--brand-emerald)';
+                    const seqBg = isCollected ? 'rgba(255,255,255,0.05)' : 'rgba(16,185,129,0.15)';
+                    const statusText = isCollected ? 'Collected' : 'Scheduled';
+                    itemHeaderHtml = `<span style="color:${seqColor}; font-weight:800; background:${seqBg}; border-radius:4px; padding:2px 6px; margin-right:4px;">#${idx + 1}</span> ${statusText}`;
 
                     if (d.routeDistanceKm !== undefined && d.routeDistanceKm > 0) {
-                        distanceLabel = `<span style="color:var(--brand-emerald); font-size:11px; font-weight:bold; margin-left:8px;">+${d.routeDistanceKm.toFixed(1)} km</span>`;
+                        distanceLabel = `<span style="color:${isCollected ? 'var(--text-muted)' : 'var(--brand-emerald)'}; font-size:11px; font-weight:bold; margin-left:8px;">+${d.routeDistanceKm.toFixed(1)} km</span>`;
                     }
                 }
 
+                const cardOpacity = isCollected ? 'opacity:0.6; filter:grayscale(0.4);' : '';
+
                 listHtml.push(`
-                    <div class="map-list-card" id="card-${d.submission_id}" onclick="focusMarker(${lat}, ${lng}, ${d.submission_id})">
+                    <div class="map-list-card" id="card-${d.submission_id}" style="${cardOpacity}" onclick="focusMarker(${lat}, ${lng}, ${d.submission_id})">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div style="font-weight:600; font-size:var(--text-sm); display:flex; align-items:center;">
                                 ${itemHeaderHtml}
@@ -558,7 +582,7 @@
                         <div class="d-flex gap-2">
                             ${actionBtnHTML}
                         </div>
-                        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-ghost mt-2 border" style="width:100%; padding:6px; font-size:12px; text-decoration:none; text-align:center;">Nav ↗</a>
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank" class="btn btn-ghost mt-2 border" style="width:100%; padding:6px; font-size:12px; text-decoration:none; text-align:center; ${isCollected ? 'pointer-events:none; opacity:0.5;' : ''}">Nav ↗</a>
                     </div>
                 `);
             });
