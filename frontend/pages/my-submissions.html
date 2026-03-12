@@ -7,6 +7,37 @@
     <title>My Submissions - WasteSense</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
+        .submissions-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--space-4);
+            margin-bottom: var(--space-5);
+        }
+
+        .submissions-header h1 {
+            margin-bottom: var(--space-1);
+            letter-spacing: -0.02em;
+        }
+
+        .submissions-header p {
+            margin: 0;
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .submissions-new-btn {
+            padding: 10px 16px;
+            font-size: var(--text-sm);
+            border-radius: var(--radius-pill);
+            white-space: nowrap;
+            box-shadow: 0 10px 20px rgba(27, 94, 32, 0.08);
+        }
+
+        .submissions-new-btn:hover {
+            text-decoration: none;
+        }
+
         .filter-bar {
             display: flex;
             gap: var(--space-2);
@@ -46,6 +77,131 @@
             border-color: var(--brand-lime);
         }
 
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 11px;
+            background: rgba(46, 125, 50, 0.08);
+            border: 1px solid rgba(46, 125, 50, 0.12);
+            color: var(--text-secondary);
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        .sub-card {
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(46, 125, 50, 0.10);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sub-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .sub-card-media {
+            height: 150px;
+            background: linear-gradient(180deg, rgba(46, 125, 50, 0.08), rgba(46, 125, 50, 0.02));
+            position: relative;
+        }
+
+        .sub-card-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .sub-card-media-fallback {
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: var(--text-sm);
+        }
+
+        .sub-card-body {
+            padding: var(--space-4);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+
+        .sub-card-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: var(--space-3);
+        }
+
+        .sub-id {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .sub-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sub-emoji {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: rgba(46, 125, 50, 0.08);
+            border: 1px solid rgba(46, 125, 50, 0.12);
+            font-size: 18px;
+        }
+
+        .sub-cat {
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+
+        .sub-confidence {
+            font-size: 11px;
+            color: var(--brand-emerald);
+            font-weight: 700;
+        }
+
+        .sub-meta {
+            display: grid;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .sub-meta-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sub-actions {
+            margin-top: auto;
+            padding-top: var(--space-3);
+            border-top: 1px solid rgba(46, 125, 50, 0.10);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--space-2);
+        }
+
         .btn-cancel {
             background: transparent;
             color: var(--status-denied);
@@ -67,14 +223,12 @@
 <body class="stagger-1">
 
     <div class="main-content">
-        <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="submissions-header">
             <div>
-                <h1 style="margin-bottom:var(--space-1);">My Submissions</h1>
-                <p class="text-secondary" style="font-size:var(--text-sm); margin:0;">Track your waste collection
-                    requests</p>
+                <h1>My Submissions</h1>
+                <p>Track your waste collection requests</p>
             </div>
-            <a href="submit-waste.html" class="btn gradient-brand"
-                style="padding: 8px 16px; font-size:var(--text-sm);">+ New</a>
+            <a href="submit-waste.html" class="btn gradient-brand submissions-new-btn">+ New</a>
         </div>
 
         <div class="filter-bar" id="filterBar">
@@ -110,7 +264,7 @@
             if (!Array.isArray(tags)) tags = [tagsStr];
 
             return tags.filter(t => t).map(t =>
-                `<span style="display:inline-block; padding:2px 8px; border-radius:12px; font-size:10px; background:var(--bg-inset); color:var(--text-secondary); margin-right:4px;">${t}</span>`
+                `<span class="tag-pill">${escapeHtml(t)}</span>`
             ).join('');
         };
 
@@ -189,54 +343,56 @@
                 const canCancel = status === 'pending';
 
                 const imageHtml = sub.image_path
-                    ? `<div style="height:140px; border-radius:var(--radius-md) var(--radius-md) 0 0; overflow:hidden; background:#000;">
-                           <img src=${JSON.stringify(sub.image_path)} style="width:100%; height:100%; object-fit:cover; opacity:0.8;">
-                       </div>`
-                    : `<div style="height:140px; background:var(--bg-inset); border-radius:var(--radius-md) var(--radius-md) 0 0; display:flex; align-items:center; justify-content:center; color:var(--text-muted);">No Image</div>`;
+                    ? `<div class="sub-card-media"><img src=${JSON.stringify(sub.image_path)} alt="Submission image"></div>`
+                    : `<div class="sub-card-media sub-card-media-fallback">No Image</div>`;
 
                 const mainCat = sub.category_name || sub.confirmed_category || sub.predicted_category || 'mixed';
                 const emoji = getWasteEmoji(mainCat);
                 const confPct = (sub.confidence_score !== null && sub.confidence_score !== undefined) ? normalizeConfidencePct(sub.confidence_score) : 0;
-                const confidenceHtml = confPct ? `<span style="font-size:10px; color:var(--brand-emerald);">🤖 ${confPct}% match</span>` : '';
+                const confidenceHtml = confPct ? `<div class="sub-confidence">🤖 ${confPct}% match</div>` : '';
+
+                const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 
                 return `
-                    <div class="nm-raised custom-radius" style="padding:0; overflow:hidden; display:flex; flex-direction:column;">
+                    <div class="nm-raised custom-radius sub-card">
                         ${imageHtml}
                         
-                        <div style="padding:var(--space-4); flex:1; display:flex; flex-direction:column;">
-                            <div class="d-flex align-items-start justify-content-between mb-2">
-                                <div class="badge badge-${status}" style="margin-bottom:0;">${status.charAt(0).toUpperCase() + status.slice(1)}</div>
-                                <div class="text-muted" style="font-size:10px;">ID: #${sub.submission_id}</div>
+                        <div class="sub-card-body">
+                            <div class="sub-card-top">
+                                <div class="badge badge-${status}" style="margin-bottom:0;">${statusLabel}</div>
+                                <div class="sub-id">ID: #${sub.submission_id}</div>
                             </div>
-                            
-                            <div class="d-flex align-items-center gap-2 mb-3">
-                                <span style="font-size:20px;">${emoji}</span>
+
+                            <div class="sub-title">
+                                <div class="sub-emoji">${emoji}</div>
                                 <div>
-                                    <div style="font-weight:700; font-size:var(--text-md);">${mainCat.toUpperCase()}</div>
+                                    <div class="sub-cat">${escapeHtml(String(mainCat).toUpperCase())}</div>
                                     ${confidenceHtml}
                                 </div>
                             </div>
 
-                            <div style="margin-bottom:var(--space-3);">
-                                <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">PROPERTIES</div>
+                            <div>
+                                <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px; font-weight:700; letter-spacing:0.06em;">PROPERTIES</div>
                                 <div>${renderTags(sub.waste_adjectives) || renderTags(sub.waste_types)}</div>
                             </div>
 
-                            <div style="margin-bottom:var(--space-3); font-size:12px; color:var(--text-secondary);">
-                                <div style="display:flex; gap:8px; margin-bottom:4px;">
-                                    <span>📍</span> <span class="text-truncate">${sub.address_description || sub.barangay_name || 'No address'}</span>
+                            <div class="sub-meta">
+                                <div class="sub-meta-row">
+                                    <span>📍</span>
+                                    <span class="text-truncate">${escapeHtml(sub.address_description || sub.barangay_name || 'No address')}</span>
                                 </div>
-                                <div style="display:flex; gap:8px;">
-                                    <span>📅</span> <span>${formatDate(sub.created_at)}</span>
+                                <div class="sub-meta-row">
+                                    <span>📅</span>
+                                    <span>${formatDate(sub.created_at)}</span>
                                 </div>
                             </div>
 
                             ${sub.waste_description ? `
-                            <div class="nm-inset" style="padding:var(--space-2); font-size:11px; color:var(--text-secondary); margin-bottom:var(--space-3); max-height:60px; overflow-y:auto;">
+                            <div class="nm-inset" style="padding:var(--space-3); font-size:12px; color:var(--text-secondary); max-height:84px; overflow-y:auto; line-height:1.4;">
                                 &ldquo;${escapeHtml(sub.waste_description)}&rdquo;
                             </div>` : '<div style="flex:1;"></div>'}
 
-                            <div class="mt-auto pt-3" style="border-top:1px solid rgba(255,255,255,0.05); display:flex; justify-content:flex-end;">
+                            <div class="sub-actions">
                                 ${canCancel ? `<button class="btn-cancel" onclick="cancelSubmission(${sub.submission_id})">Cancel</button>` : `<span style="font-size:11px; color:var(--text-muted);">No actions available</span>`}
                             </div>
                         </div>

@@ -198,7 +198,7 @@ class User {
   static async setPassword(userId, newPassword) {
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(newPassword, saltRounds);
-    await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [password_hash, userId]);
+    await db.query('UPDATE users SET password_hash = ?, force_password_change = 0 WHERE user_id = ?', [password_hash, userId]);
     return await this.findByIdAdmin(userId);
   }
 

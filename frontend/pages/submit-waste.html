@@ -1176,9 +1176,9 @@
             formObj.append('confidence_score', aiPrediction?.confidence || 0);
 
             const types = Array.from(document.querySelectorAll('input[name="waste_types"]:checked')).map(n => n.value);
-            const adjs = Array.from(document.querySelectorAll('input[name="waste_adjectives"]:checked')).map(n => n.value);
+            const adjectivesSelected = Array.from(document.querySelectorAll('input[name="waste_adjectives"]:checked')).map(n => n.value);
             formObj.append('waste_types', JSON.stringify(types));
-            formObj.append('waste_adjectives', JSON.stringify(adjs));
+            formObj.append('waste_adjectives', JSON.stringify(adjectivesSelected));
 
             formObj.append('waste_description', document.getElementById('wasteDescription').value);
             formObj.append('barangay_id', barangayId);

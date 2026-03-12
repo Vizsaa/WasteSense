@@ -476,7 +476,7 @@
                 if (isMyPickup) {
                     actionBtnHTML = `
                         <div class="d-flex gap-2 mt-2">
-                            <button class="btn gradient-brand w-100" style="padding:6px; font-size:12px; flex:2;" onclick="completeSub(${d.submission_id}, ${JSON.stringify(loc)})">✓ Mark Collected</button>
+                            <button class="btn gradient-brand w-100" style="padding:6px; font-size:12px; flex:2;" onclick="completeSub(${d.submission_id}, ${JSON.stringify(loc).replace(/\"/g, '&quot;')})">✓ Mark Collected</button>
                             <button class="btn nm-inset w-100" style="padding:6px; font-size:12px; flex:1; border:1px solid var(--status-denied); color:var(--status-denied);" onclick="reportProblemSub(${d.submission_id})">Report</button>
                         </div>
                     `;
