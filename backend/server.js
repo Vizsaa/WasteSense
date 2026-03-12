@@ -14,6 +14,9 @@ getModel().catch(err => console.warn('[Startup] Model pre-warm failed:', err.mes
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxies (e.g., ngrok, load balancers)
+app.set('trust proxy', true);
+
 function requireAdminPage(req, res, next) {
   if (req.session && req.session.userId && req.session.role === 'admin') {
     return next();

@@ -135,10 +135,10 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Validation
-    if (!email || !password) {
+    if (!email) {
       return res.status(400).json({
         status: 'error',
-        message: 'Email and password are required'
+        message: 'Email is required'
       });
     }
 
@@ -173,18 +173,9 @@ const login = async (req, res) => {
       });
     }
 
-    // Verify password
-    const isPasswordValid = await User.verifyPassword(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Invalid email or password'
-      });
-    }
-
-    // Check forced password change BEFORE generating full session
+    // Check forced password change BEFORE verifying password
+    // This allows users whose password was reset by an admin to bypass the old password check
     if (user.force_password_change === 1) {
-      // Require crypto if not required at the top
       const crypto = require('crypto');
       const limitedToken = crypto.randomUUID();
 
@@ -194,7 +185,24 @@ const login = async (req, res) => {
       return res.status(200).json({
         force_password_change: true,
         limited_token: limitedToken,
-        message: 'Your password has been reset by an administrator. Please set a new password to continue.'
+        message: 'Your password was reset by an administrator. You must create a new password before continuing.'
+      });
+    }
+
+    // Now check password if not in force reset mode
+    if (!password) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Password is required'
+      });
+    }
+
+    // Verify password
+    const isPasswordValid = await User.verifyPassword(password, user.password_hash);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid email or password'
       });
     }
 
@@ -285,6 +293,44 @@ const getCurrentUser = async (req, res) => {
 };
 
 /**
+ * Check if a user is flagged for a forced password change
+ */
+const checkForcedReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'Email is required' });
+    }
+
+    const user = await User.findByEmail(email.trim().toLowerCase());
+    if (!user) {
+      // For security, return negative even if user doesn't exist
+      return res.json({ force_password_change: false });
+    }
+
+    if (user.force_password_change === 1 && user.is_active) {
+      // Same logic as login to generate a limited token
+      const crypto = require('crypto');
+      const limitedToken = crypto.randomUUID();
+
+      req.session.limited_token = limitedToken;
+      req.session.password_change_user_id = user.user_id;
+
+      return res.json({
+        force_password_change: true,
+        limited_token: limitedToken,
+        message: 'Your password was reset by an administrator. You must create a new password before continuing.'
+      });
+    }
+
+    return res.json({ force_password_change: false });
+  } catch (error) {
+    console.error('Check forced reset error:', error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+/**
  * Set New Password after forced reset
  */
 const setNewPassword = async (req, res) => {
@@ -348,5 +394,6 @@ module.exports = {
   login,
   logout,
   getCurrentUser,
+  checkForcedReset,
   setNewPassword
 };

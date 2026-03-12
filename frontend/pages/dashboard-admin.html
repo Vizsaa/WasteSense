@@ -344,6 +344,10 @@
                             try { metaObj = JSON.parse(r.metadata || '{}'); } catch (e) { }
                             extraInfo = `<div class="text-secondary" style="font-size:11px; margin-top:4px;">Requested New Email: <strong>${metaObj.new_email || 'Unknown'}</strong></div>`;
                             break;
+                        case 'report_issue':
+                            badgeLabel = '🐛 Technical Issue';
+                            badgeStyle = 'background:rgba(0, 131, 143, 0.1); color:#00838F; border:1px solid #00838F;';
+                            break;
                     }
 
                     return `

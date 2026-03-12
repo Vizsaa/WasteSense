@@ -152,6 +152,15 @@
             'mixed': '#6B7280'          // Gray
         };
 
+        const labelMap = {
+            'biodegradable': 'Biodegradable',
+            'recyclable': 'Recyclable',
+            'non-biodegradable': 'Non-Biodegradable',
+            'special': 'Special',
+            'hazardous': 'Hazardous',
+            'mixed': 'Mixed'
+        };
+
         let categoryChartInst = null;
         let trendChartInst = null;
         let heatmapMap = null;
@@ -173,17 +182,14 @@
             document.getElementById('userCount').innerHTML = '<div class="skeleton" style="height:40px; width:60px; border-radius:4px; margin-top:8px;"></div>';
 
             try {
-                const [pend, assg, usr] = await Promise.all([
+                const [pend, scheduled, usr] = await Promise.all([
                     apiFetch('/api/waste/pending'),
-                    apiFetch('/api/waste/assigned'),
+                    apiFetch('/api/waste/all?status=scheduled&limit=5000&offset=0'),
                     apiFetch('/api/users')
                 ]);
                 document.getElementById('pendingCount').textContent = (pend.data || []).length;
-                document.getElementById('assignedCount').textContent = (assg.data || []).length;
+                document.getElementById('assignedCount').textContent = (scheduled.data || []).length;
                 document.getElementById('userCount').textContent = (usr.data || []).length;
-
-                // Use pend & assg to render donut
-                renderCategoryDonut([...(pend.data || []), ...(assg.data || [])]);
             } catch (e) {
                 console.warn('Metrics failed', e);
                 document.getElementById('pendingCount').textContent = '-';
@@ -192,19 +198,56 @@
             }
         }
 
+        function normalizeWasteTypes(value) {
+            if (!value) return [];
+            if (Array.isArray(value)) {
+                return value.map(v => String(v).trim()).filter(Boolean);
+            }
+            if (typeof value === 'string') {
+                const raw = value.trim();
+                if (!raw) return [];
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) return parsed.map(v => String(v).trim()).filter(Boolean);
+                    if (typeof parsed === 'string') return [parsed.trim()].filter(Boolean);
+                    return [];
+                } catch (e) {
+                    return raw.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            }
+            return [];
+        }
+
+        function normalizeCategoryKey(value) {
+            const clean = String(value || '').toLowerCase().trim();
+            if (!clean) return null;
+            if (clean === 'non biodegradable' || clean === 'non_biodegradable' || clean === 'nonbiodegradable') return 'non-biodegradable';
+            if (clean === 'bio' || clean === 'biodegradable') return 'biodegradable';
+            if (clean === 'recycle' || clean === 'recyclable') return 'recyclable';
+            if (clean === 'hazard' || clean === 'hazardous') return 'hazardous';
+            if (clean === 'special') return 'special';
+            if (clean === 'mixed' || clean === 'unknown') return 'mixed';
+            return clean;
+        }
+
+        function extractSubmissionCategories(submission) {
+            const fromTypes = normalizeWasteTypes(submission?.waste_types).map(normalizeCategoryKey).filter(Boolean);
+            if (fromTypes.length > 0) return fromTypes;
+
+            const fallback = normalizeCategoryKey(submission?.confirmed_category || submission?.predicted_category || submission?.category);
+            return fallback ? [fallback] : ['mixed'];
+        }
+
         function renderCategoryDonut(allSubs) {
             const counts = { biodegradable: 0, recyclable: 0, 'non-biodegradable': 0, special: 0, hazardous: 0, mixed: 0 };
 
             allSubs.forEach(s => {
-                let types = [];
-                try { types = JSON.parse(s.waste_types || '[]'); } catch { types = [s.confirmed_category || 'mixed'] }
-                if (types.length === 0) types = ['mixed'];
-
-                types.forEach(t => {
-                    const clean = t.toLowerCase().trim();
-                    if (counts[clean] !== undefined) counts[clean]++;
-                    else counts.mixed++;
-                });
+                const cats = extractSubmissionCategories(s);
+                cats.forEach(c => {
+                    const clean = normalizeCategoryKey(c) || 'mixed';
+                    if (counts[clean] !== undefined) counts[clean] += 1;
+                    else counts.mixed += 1;
+                })
             });
 
             const labels = Object.keys(counts).filter(k => counts[k] > 0);
@@ -218,14 +261,24 @@
             categoryChartInst = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                    labels: labels.map(l => labelMap[l] || l),
                     datasets: [{ data: dataVals, backgroundColor: bgColors, borderWidth: 0, hoverOffset: 4 }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'right', labels: { usePointStyle: true, padding: 20 } }
+                        legend: { position: 'right', labels: { usePointStyle: true, padding: 16 } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const total = ctx.dataset.data.reduce((a, b) => a + b, 0) || 1;
+                                    const val = ctx.parsed || 0;
+                                    const pct = ((val / total) * 100).toFixed(1);
+                                    return ` ${val} (${pct}%)`;
+                                }
+                            }
+                        }
                     },
                     cutout: '70%'
                 }
@@ -239,7 +292,17 @@
                 attribution: '&copy; OpenStreetMap &copy; CARTO'
             }).addTo(heatmapMap);
 
-            heatLayer = L.heatLayer([], { radius: 25, blur: 20, maxZoom: 15, gradient: { 0.4: 'blue', 0.6: 'lime', 1: 'red' } }).addTo(heatmapMap);
+            heatLayer = L.heatLayer([], {
+                radius: 28,
+                blur: 22,
+                maxZoom: 15,
+                minOpacity: 0.35,
+                gradient: {
+                    0.25: '#FFD54A',
+                    0.6: '#FF8A00',
+                    1.0: '#FF2D2D'
+                }
+            }).addTo(heatmapMap);
 
             document.getElementById('heatmapDays').addEventListener('change', loadHeatmapData);
             document.getElementById('reloadHeatmapBtn').addEventListener('click', loadHeatmapData);
@@ -262,10 +325,11 @@
                     heatmapMap.fitBounds(L.latLngBounds(heatPoints), { padding: [50, 50], maxZoom: 14 });
                 }
 
-                document.getElementById('heatmapMeta').textContent = `Showing ${heatPoints.length} geocoded requests.`;
+                document.getElementById('heatmapMeta').textContent = `Showing ${heatPoints.length} mapped submissions.`;
 
                 // Update Trend Line chart
                 renderTrendChart(data.temporal?.daily || []);
+                renderCategoryDonut(data.points || []);
 
             } catch (e) {
                 document.getElementById('heatmapMeta').textContent = 'Failed to load heatmap data.';
@@ -293,36 +357,65 @@
                 labels = ['No Data']; vals = [0];
             }
 
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(110, 224, 0, 0.4)'); // brand-lime transparent
-            gradient.addColorStop(1, 'rgba(110, 224, 0, 0.0)');
+            const barGradient = ctx.createLinearGradient(0, 0, 0, 300);
+            barGradient.addColorStop(0, 'rgba(255, 138, 0, 0.65)');
+            barGradient.addColorStop(1, 'rgba(255, 45, 45, 0.15)');
 
             trendChartInst = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Requests',
+                        type: 'bar',
+                        label: 'Submissions',
                         data: vals,
-                        borderColor: '#6EE000',
-                        backgroundColor: gradient,
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#121212',
-                        pointBorderColor: '#6EE000',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
+                        backgroundColor: barGradient,
+                        borderColor: 'rgba(255, 138, 0, 0.9)',
+                        borderWidth: 1,
+                        borderRadius: 10,
+                        maxBarThickness: 22
+                    }, {
+                        type: 'line',
+                        label: 'Trend',
+                        data: vals,
+                        borderColor: '#FFD54A',
+                        backgroundColor: 'rgba(255, 213, 74, 0.15)',
+                        borderWidth: 2.5,
+                        tension: 0.35,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHitRadius: 12,
+                        pointHoverRadius: 3
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            intersect: false,
+                            mode: 'index',
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.dataset.type !== 'bar') return '';
+                                    const v = ctx.parsed?.y ?? ctx.parsed ?? 0;
+                                    return ` ${v} submissions`;
+                                }
+                            },
+                            filter: (ctx) => ctx.dataset.type === 'bar'
+                        }
+                    },
                     scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(46,125,50,0.1)' } },
-                        x: { grid: { display: false } }
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 },
+                            grid: { color: 'rgba(0,0,0,0.08)' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { maxRotation: 0, autoSkip: true }
+                        }
                     }
                 }
             });

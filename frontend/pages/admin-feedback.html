@@ -117,6 +117,56 @@
             flex-wrap: wrap;
             align-items: center;
         }
+
+        .avg-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: var(--space-3);
+        }
+
+        .avg-item {
+            background: var(--bg-inset);
+            border-radius: var(--radius-md);
+            padding: var(--space-3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .avg-title {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            margin-bottom: 6px;
+        }
+
+        .avg-value-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .avg-value {
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .avg-count {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .avg-pips {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
     </style>
 </head>
 
@@ -148,6 +198,15 @@
                     <option value="200">200</option>
                 </select>
             </div>
+        </div>
+
+        <!-- Averages -->
+        <div id="avgCard" class="nm-raised custom-radius mb-4" style="padding:var(--space-4); display:none;">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h2 style="font-size:var(--text-lg); margin:0;">Survey Averages</h2>
+                <div id="avgMeta" class="text-secondary text-sm"></div>
+            </div>
+            <div id="avgGrid" class="avg-grid"></div>
         </div>
 
         <!-- Desktop Table -->
@@ -200,6 +259,9 @@
         async function loadFeedback() {
             const tbody = document.getElementById('feedbackBody');
             const limit = document.getElementById('limitSelect').value || '50';
+            const avgCard = document.getElementById('avgCard');
+            const avgGrid = document.getElementById('avgGrid');
+            const avgMeta = document.getElementById('avgMeta');
 
             document.getElementById('limitDisp').textContent = limit;
             showSkeletonList(tbody, 3, 'table', 3);
@@ -211,10 +273,13 @@
                 if (rows.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="3" class="text-center" style="padding:40px; color:var(--text-muted);">Inbox is empty. No recent feedback found.</td></tr>`;
                     document.getElementById('tableFooter').style.display = 'none';
+                    avgCard.style.display = 'none';
                     return;
                 }
 
                 document.getElementById('tableFooter').style.display = 'block';
+
+                renderAverages(rows, avgCard, avgGrid, avgMeta);
 
                 tbody.innerHTML = rows.map(r => {
                     const dt = r.created_at ? new Date(r.created_at) : new Date();
@@ -278,7 +343,93 @@
                 }).join('');
             } catch (e) {
                 tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">Failed to synchronize feedback data stream.</td></tr>`;
+                avgCard.style.display = 'none';
             }
+        }
+
+        function renderAverages(rows, avgCard, avgGrid, avgMeta) {
+            const keys = Object.keys(QUESTIONS);
+            const totals = {};
+            const counts = {};
+
+            for (const k of keys) {
+                totals[k] = 0;
+                counts[k] = 0;
+            }
+
+            let responseCount = 0;
+            let overallSum = 0;
+            let overallCount = 0;
+
+            for (const r of rows) {
+                if (!r || !r.likert_responses) continue;
+                let responses = null;
+                try {
+                    responses = typeof r.likert_responses === 'string' ? JSON.parse(r.likert_responses) : r.likert_responses;
+                } catch (e) {
+                    continue;
+                }
+
+                if (!responses || typeof responses !== 'object') continue;
+
+                let hasAny = false;
+                for (const k of keys) {
+                    const v = responses[k];
+                    const num = typeof v === 'number' ? v : parseFloat(v);
+                    if (!Number.isFinite(num)) continue;
+                    if (num < 1 || num > 5) continue;
+                    hasAny = true;
+                    totals[k] += num;
+                    counts[k] += 1;
+                    overallSum += num;
+                    overallCount += 1;
+                }
+                if (hasAny) responseCount += 1;
+            }
+
+            if (overallCount === 0) {
+                avgCard.style.display = 'none';
+                return;
+            }
+
+            const overallAvg = overallSum / overallCount;
+            avgMeta.textContent = `${responseCount} response${responseCount === 1 ? '' : 's'}`;
+
+            const cards = [];
+
+            cards.push(avgCardHtml('Overall Average', overallAvg, overallCount));
+            for (const k of keys) {
+                const c = counts[k];
+                if (c === 0) continue;
+                cards.push(avgCardHtml(QUESTIONS[k], totals[k] / c, c));
+            }
+
+            avgGrid.innerHTML = cards.join('');
+            avgCard.style.display = 'block';
+        }
+
+        function avgCardHtml(title, avg, count) {
+            const avgText = Number.isFinite(avg) ? avg.toFixed(2) : '0.00';
+            const rounded = Math.max(1, Math.min(5, Math.round(avg)));
+            const pips = [];
+            const levelClass = avg <= 2 ? 'low' : (avg <= 3 ? 'mid' : '');
+            for (let i = 1; i <= 5; i++) {
+                const activeClass = i <= rounded ? 'active' : '';
+                pips.push(`<div class="pip ${activeClass} ${levelClass}"></div>`);
+            }
+
+            return `
+                <div class="avg-item">
+                    <div class="avg-title" title="${escapeHtml(title)}">${escapeHtml(title)}</div>
+                    <div class="avg-value-row">
+                        <div class="avg-value">${avgText}</div>
+                        <div class="avg-count">${count} rating${count === 1 ? '' : 's'}</div>
+                    </div>
+                    <div class="avg-pips">
+                        <div class="pip-container">${pips.join('')}</div>
+                    </div>
+                </div>
+            `;
         }
 
         function escapeHtml(str) {

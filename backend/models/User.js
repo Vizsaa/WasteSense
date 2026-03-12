@@ -251,6 +251,17 @@ class User {
     const [rows] = await db.query(sql, [role]);
     return rows;
   }
+
+  /**
+   * Delete a user by ID
+   * @param {number} userId - User ID to delete
+   * @returns {Promise<boolean>} True if deleted
+   */
+  static async delete(userId) {
+    const sql = 'DELETE FROM users WHERE user_id = ?';
+    const result = await db.execute(sql, [userId]);
+    return result.affectedRows > 0;
+  }
 }
 
 module.exports = User;

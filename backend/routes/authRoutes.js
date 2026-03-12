@@ -7,9 +7,14 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 // Simple in-memory rate limiter for login
 const loginAttempts = new Map();
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_ATTEMPTS = 10;
+const MAX_ATTEMPTS = 1000; // Increased significantly to allow multiple testers behind proxies like ngrok
 
 function loginRateLimiter(req, res, next) {
+  // Bypass if environment variable is set for testing/ngrok scenarios
+  if (process.env.BYPASS_RATE_LIMIT === 'true') {
+    return next();
+  }
+
   const ip = req.ip || req.connection.remoteAddress || 'unknown';
   const now = Date.now();
   const entry = loginAttempts.get(ip) || { count: 0, first: now };
@@ -37,6 +42,7 @@ function loginRateLimiter(req, res, next) {
 router.post('/register', authController.register);
 router.post('/login', loginRateLimiter, authController.login);
 router.post('/logout', authController.logout);
+router.post('/check-forced-reset', authController.checkForcedReset);
 router.post('/password-request', passwordResetController.createRequest);
 router.get('/password-request/status', passwordResetController.getStatusByEmail);
 router.post('/password-reset', passwordResetController.resetApprovedPassword);

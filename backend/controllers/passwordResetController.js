@@ -70,20 +70,15 @@ const createRequest = async (req, res) => {
     }
 
     const user = await User.findByEmail(normalizedEmail);
-    if (!user) {
-      // For security, do not reveal if email exists
-      return res.json({
-        status: 'success',
-        message: 'Sent to admin, please wait.'
-      });
-    }
-
+    // Even if user is not found, we still create the request so admin can see it.
+    // This handles cases where users might have typos in their email or are new users requesting help.
+    
     const safeDescription = description
       ? String(description).trim().slice(0, 500)
       : '';
 
     await PasswordResetRequest.create({
-      user_id: user.user_id,
+      user_id: user ? user.user_id : null,
       email: normalizedEmail,
       request_type: type,
       description: safeDescription,

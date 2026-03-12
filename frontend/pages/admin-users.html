@@ -279,6 +279,11 @@
                     style="border:1px solid var(--status-warning); color:var(--status-warning);">
                     Force Password Reset
                 </button>
+
+                <button class="btn nm-inset w-100 mb-2" onclick="deleteUser()"
+                    style="border:1px solid var(--status-denied); color:var(--status-denied); margin-top: 8px;">
+                    Delete User Account
+                </button>
             </div>
         </div>
 
@@ -506,6 +511,27 @@
                     method: 'POST', body: JSON.stringify({ new_password: newPwd.trim() })
                 });
                 if (res.status === 'success') showToast('Password reset complete', 'success');
+            } catch (e) { }
+        };
+
+        window.deleteUser = async function () {
+            const id = document.getElementById('editUserId').value;
+            const userEmail = document.getElementById('userEmail').value;
+
+            const confirmed = await showConfirmToast(
+                'Delete User Account?',
+                `Are you sure you want to permanently delete <strong>${userEmail}</strong>? This action cannot be undone.`
+            );
+
+            if (!confirmed) return;
+
+            try {
+                const res = await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
+                if (res.status === 'success') {
+                    showToast('User account deleted permanently', 'success');
+                    closePanel();
+                    loadUsers();
+                }
             } catch (e) { }
         };
 

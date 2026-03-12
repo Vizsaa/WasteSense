@@ -623,6 +623,41 @@ const assignCollectorBarangay = async (req, res) => {
   }
 };
 
+/**
+ * Admin: Delete a user
+ */
+const deleteUserAdmin = async (req, res) => {
+  try {
+    if (!req.session || req.session.role !== 'admin') {
+      return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const targetUserId = parseInt(id, 10);
+    if (Number.isNaN(targetUserId)) {
+      return res.status(400).json({ status: 'error', message: 'Invalid user id' });
+    }
+
+    // Prevent admin from deleting themselves
+    if (targetUserId === req.session.userId) {
+      return res.status(400).json({ status: 'error', message: 'You cannot delete your own account.' });
+    }
+
+    const deleted = await User.delete(targetUserId);
+    if (!deleted) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'User deleted successfully'
+    });
+  } catch (error) {
+    console.error('Admin delete user error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to delete user' });
+  }
+};
+
 module.exports = {
   updateProfile,
   updateProfileWithPicture,
@@ -631,5 +666,6 @@ module.exports = {
   createUserAdmin,
   updateUserAdmin,
   resetUserPasswordAdmin,
-  assignCollectorBarangay
+  assignCollectorBarangay,
+  deleteUserAdmin
 };

@@ -415,14 +415,6 @@
 
                 <!-- Status & Reset Inject Container -->
                 <div id="forgotStatus" style="font-size:13px; margin-bottom:12px; font-weight:600;"></div>
-                <div id="forgotResetContainer" style="display:none; margin-bottom:16px;">
-                    <h4 class="mb-2" style="font-size:0.9rem;">Set New Password</h4>
-                    <input type="password" id="forgotNewPassword" class="nm-inset mb-2" placeholder="New Password"
-                        minlength="6">
-                    <input type="password" id="forgotNewPasswordConfirm" class="nm-inset mb-3"
-                        placeholder="Confirm Password" minlength="6">
-                    <button type="button" class="btn btn-emerald" id="forgotResetBtn">Save New Password</button>
-                </div>
 
                 <div class="d-flex gap-3">
                     <button type="button" class="btn btn-ghost" style="flex:1;" id="forgotCloseBtn">Cancel</button>
@@ -447,6 +439,33 @@
                 const user = await checkAuthStatus();
                 if (user && user.role) redirectByRole(user.role);
             } catch (e) { }
+
+            // Automatic forced-reset check
+            const emailInput = document.getElementById('email');
+            let checkTimeout = null;
+
+            const triggerResetCheck = async () => {
+                const email = emailInput.value.trim();
+                if (!email || email.length < 5 || !email.includes('@')) return;
+
+                try {
+                    const res = await fetch('/api/auth/check-forced-reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    const data = await res.json();
+                    if (data.force_password_change) {
+                        await handleLoginResponse(data);
+                    }
+                } catch (e) { }
+            };
+
+            emailInput.addEventListener('blur', triggerResetCheck);
+            emailInput.addEventListener('input', () => {
+                clearTimeout(checkTimeout);
+                checkTimeout = setTimeout(triggerResetCheck, 1500); // 1.5s debounce
+            });
         });
 
         // Form Submit
@@ -458,8 +477,8 @@
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
-            if (!email || !password) {
-                showToast('Please fill in all fields', 'warning');
+            if (!email) {
+                showToast('Please enter your email', 'warning');
                 return;
             }
 
@@ -555,8 +574,7 @@
         document.getElementById('forgotEmail').addEventListener('blur', async () => {
             const email = document.getElementById('forgotEmail').value.trim();
             const statusEl = document.getElementById('forgotStatus');
-            const resetContainer = document.getElementById('forgotResetContainer');
-            if (!email) { statusEl.textContent = ''; resetContainer.style.display = 'none'; return; }
+            if (!email) { statusEl.textContent = ''; return; }
 
             try {
                 const data = await apiFetch('/api/auth/password-request/status?email=' + encodeURIComponent(email));
@@ -566,21 +584,12 @@
                 if (st === 'denied') {
                     statusEl.textContent = '❌ Request Denied';
                     statusEl.style.color = 'var(--status-denied)';
-                    resetContainer.style.display = 'none';
                 } else if (st === 'accepted') {
-                    const reqType = data.data?.request_type || 'forgot_password';
-                    if (reqType === 'forgot_password') {
-                        statusEl.textContent = '✅ Request accepted! Set your new password below.';
-                        statusEl.style.color = 'var(--status-collected)';
-                        resetContainer.style.display = 'block';
-                    } else {
-                        statusEl.textContent = '✅ Access Approved. Please log in again.';
-                        statusEl.style.color = 'var(--status-collected)';
-                    }
+                    statusEl.textContent = '✅ Request Approved. Please log in again to set your password.';
+                    statusEl.style.color = 'var(--status-collected)';
                 } else if (st === 'pending') {
                     statusEl.textContent = '⏳ Request is pending admin review.';
                     statusEl.style.color = 'var(--status-pending)';
-                    resetContainer.style.display = 'none';
                 }
             } catch (e) { }
         });
@@ -613,26 +622,6 @@
                 modal.style.display = 'none';
             } catch (e) { /* Error toast handled universally */ }
             btn.disabled = false;
-        });
-
-        // Reset Password Form Inside Modal
-        document.getElementById('forgotResetBtn').addEventListener('click', async () => {
-            const email = document.getElementById('forgotEmail').value;
-            const pw1 = document.getElementById('forgotNewPassword').value;
-            const pw2 = document.getElementById('forgotNewPasswordConfirm').value;
-
-            if (pw1.length < 6) { showToast('Password must be 6+ characters', 'warning'); return; }
-            if (pw1 !== pw2) { showToast('Passwords do not match', 'error'); return; }
-
-            try {
-                await apiFetch('/api/auth/password-reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, new_password: pw1, confirm_password: pw2 })
-                });
-                showToast('Password changed successfully!', 'success');
-                modal.style.display = 'none';
-            } catch (e) { }
         });
 
         // Forced Password Change Logic
