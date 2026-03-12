@@ -18,7 +18,13 @@ const submitFeedback = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Feedback message is too long (max 2000 characters)' });
     }
 
-    const created = await Feedback.create({ user_id: req.session.userId, message });
+    const likert_responses = req.body?.likert_responses || null;
+
+    const created = await Feedback.create({
+      user_id: req.session.userId,
+      message,
+      likert_responses
+    });
 
     return res.status(201).json({
       status: 'success',

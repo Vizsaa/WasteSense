@@ -38,6 +38,84 @@
             color: var(--text-muted);
             margin-top: 4px;
         }
+
+        /* Likert Scale Styles */
+        .likert-question {
+            margin-bottom: var(--space-6);
+            padding-bottom: var(--space-4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .likert-question:last-child {
+            border-bottom: none;
+        }
+
+        .likert-label {
+            font-weight: 600;
+            font-size: var(--text-sm);
+            margin-bottom: var(--space-3);
+            display: block;
+        }
+
+        .likert-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .likert-option {
+            flex: 1;
+            text-align: center;
+        }
+
+        .likert-option input {
+            display: none;
+        }
+
+        .likert-option label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 4px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+            background: var(--bg-inset);
+            border: 1px solid transparent;
+        }
+
+        .likert-option input:checked+label {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--brand-emerald);
+            color: var(--brand-emerald);
+        }
+
+        .likert-score {
+            font-weight: 700;
+            font-size: var(--text-lg);
+            margin-bottom: 2px;
+        }
+
+        .likert-text {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .likert-option input:checked+label .likert-text {
+            color: var(--brand-emerald);
+        }
+
+        .likert-legend {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            font-style: italic;
+        }
     </style>
 </head>
 
@@ -57,12 +135,22 @@
 
             <div class="nm-raised custom-radius" style="padding:var(--space-6);">
                 <form id="feedbackForm">
+                    <!-- Likert Survey Section -->
+                    <div id="surveySection" class="mb-5">
+                        <h3 style="margin-bottom:var(--space-4); font-size:var(--text-lg); color:var(--brand-emerald);">
+                            Quick Survey</h3>
+
+                        <div id="likertQuestions">
+                            <!-- Questions will be injected here -->
+                        </div>
+                    </div>
+
                     <div class="form-group mb-4">
                         <label for="feedbackMessage" class="d-flex justify-content-between align-items-center">
-                            <span>Your Message</span>
+                            <span>Your Message / Comments</span>
                         </label>
-                        <textarea id="feedbackMessage" name="message" class="nm-inset" rows="6" maxlength="2000"
-                            placeholder="Write your feedback here..." required></textarea>
+                        <textarea id="feedbackMessage" name="message" class="nm-inset" rows="4" maxlength="2000"
+                            placeholder="Write your additional feedback here..." required></textarea>
                         <div class="char-counter"><span id="charCount">0</span> / 2000</div>
                     </div>
 
@@ -71,7 +159,7 @@
                     <div id="successState" style="display:none; text-align:center; padding:var(--space-4) 0;">
                         <div style="font-size:3rem; margin-bottom:var(--space-2);">💚</div>
                         <h3 style="margin-bottom:var(--space-2);">Thank You!</h3>
-                        <p class="text-secondary mb-4">Your feedback has been received and will be reviewed by our team.
+                        <p class="text-secondary mb-4">Your feedback and survey responses have been received.
                         </p>
                         <button type="button" class="btn btn-ghost" onclick="resetForm()">Send Another</button>
                     </div>
@@ -85,11 +173,26 @@
     <script src="../js/layout.js"></script>
 
     <script>
+        const QUESTIONS = [
+            { id: 'q1', text: 'Overall, I am satisfied with WasteSense.', cat: 'satisfaction' },
+            { id: 'q2', text: 'The app is easy to navigate and use.', cat: 'ease' },
+            { id: 'q3', text: 'Collectors arrive punctually as scheduled.', cat: 'punctuality' },
+            { id: 'q4', text: 'Waste categories are accurately identified.', cat: 'accuracy' },
+            { id: 'q5', text: 'I would recommend WasteSense to my neighbors.', cat: 'recommend' },
+            { id: 'q6', text: 'The collection process is efficient.', cat: 'satisfaction' },
+            { id: 'q7', text: 'The AI category prediction is helpful.', cat: 'accuracy' },
+            { id: 'q8', text: 'I find the notifications timely and useful.', cat: 'ease' },
+            { id: 'q9', text: 'Collectors handle waste professionally.', cat: 'punctuality' },
+            { id: 'q10', text: 'WasteSense has improved my waste management.', cat: 'recommend' }
+        ];
+
         document.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
             if (!user || (user.role !== 'resident' && user.role !== 'admin')) {
                 window.location.href = 'login.html'; return;
             }
+
+            renderQuestions();
 
             const textarea = document.getElementById('feedbackMessage');
             const counter = document.getElementById('charCount');
@@ -100,6 +203,24 @@
 
             document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                // Validate all questions are answered
+                const responses = {};
+                let allAnswered = true;
+                QUESTIONS.forEach(q => {
+                    const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+                    if (!selected) {
+                        allAnswered = false;
+                    } else {
+                        responses[q.id] = parseInt(selected.value);
+                    }
+                });
+
+                if (!allAnswered) {
+                    showToast('Please answer all survey questions', 'warning');
+                    return;
+                }
+
                 const msg = textarea.value.trim();
                 if (!msg) { showToast('Please enter a message', 'warning'); return; }
 
@@ -111,11 +232,14 @@
                     const res = await apiFetch('/api/feedback', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: msg })
+                        body: JSON.stringify({
+                            message: msg,
+                            likert_responses: responses
+                        })
                     });
 
                     if (res.status === 'success') {
-                        // Hide form elements, show success
+                        document.getElementById('surveySection').style.display = 'none';
                         textarea.parentElement.style.display = 'none';
                         btn.style.display = 'none';
                         document.getElementById('successState').style.display = 'block';
@@ -127,11 +251,47 @@
             });
         });
 
+        function renderQuestions() {
+            const container = document.getElementById('likertQuestions');
+            const options = [
+                { val: 1, text: 'Strongly Disagree' },
+                { val: 2, text: 'Disagree' },
+                { val: 3, text: 'Neutral' },
+                { val: 4, text: 'Agree' },
+                { val: 5, text: 'Strongly Agree' }
+            ];
+
+            container.innerHTML = QUESTIONS.map((q, idx) => `
+                <div class="likert-question">
+                    <label class="likert-label">${idx + 1}. ${q.text}</label>
+                    <div class="likert-options">
+                        ${options.map(opt => `
+                            <div class="likert-option">
+                                <input type="radio" name="${q.id}" id="${q.id}-${opt.val}" value="${opt.val}" required>
+                                <label for="${q.id}-${opt.val}">
+                                    <span class="likert-score">${opt.val}</span>
+                                    <span class="likert-text">${opt.val === 1 ? 'SD' : opt.val === 5 ? 'SA' : opt.val}</span>
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="likert-legend">
+                        <span>Strongly Disagree</span>
+                        <span>Strongly Agree</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         window.resetForm = function () {
             const textarea = document.getElementById('feedbackMessage');
             textarea.value = '';
             document.getElementById('charCount').textContent = '0';
 
+            // Reset radio buttons
+            document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+
+            document.getElementById('surveySection').style.display = 'block';
             textarea.parentElement.style.display = 'block';
             const btn = document.getElementById('submitBtn');
             btn.style.display = 'block';

@@ -50,6 +50,63 @@
             border-radius: 0 var(--radius-md) var(--radius-md) 0;
         }
 
+        /* Survey Visuals */
+        .survey-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.1);
+        }
+
+        .survey-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .survey-q-text {
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pip-container {
+            display: flex;
+            gap: 3px;
+        }
+
+        .pip {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .pip.active {
+            background: var(--brand-emerald);
+            box-shadow: 0 0 5px var(--brand-emerald);
+        }
+
+        .pip.active.low {
+            background: var(--status-denied);
+            box-shadow: 0 0 5px var(--status-denied);
+        }
+
+        .pip.active.mid {
+            background: var(--status-pending);
+            box-shadow: 0 0 5px var(--status-pending);
+        }
+
+        .survey-score-text {
+            font-size: 10px;
+            font-weight: 700;
+            margin-left: 4px;
+        }
+
         .filter-bar {
             display: flex;
             gap: var(--space-3);
@@ -118,6 +175,19 @@
     <script src="../js/layout.js"></script>
 
     <script>
+        const QUESTIONS = {
+            'q1': 'Overall Satisfaction',
+            'q2': 'Ease of Use',
+            'q3': 'Collector Punctuality',
+            'q4': 'Category Accuracy',
+            'q5': 'Likelihood to Recommend',
+            'q6': 'Collection Efficiency',
+            'q7': 'AI Prediction Usefulness',
+            'q8': 'Notification Utility',
+            'q9': 'Collector Professionalism',
+            'q10': 'Improved Waste Management'
+        };
+
         window.addEventListener('DOMContentLoaded', async () => {
             const user = await checkAuthStatus();
             if (!user || user.role !== 'admin') { window.location.href = 'login.html'; return; }
@@ -160,18 +230,48 @@
                     // Format message nicely
                     const formattedMsg = escapeHtml(msg).replace(/\n/g, '<br>');
 
+                    // Parse Survey Responses
+                    let surveyHtml = '';
+                    if (r.likert_responses) {
+                        try {
+                            const responses = typeof r.likert_responses === 'string' ? JSON.parse(r.likert_responses) : r.likert_responses;
+                            const items = Object.entries(responses).map(([qid, score]) => {
+                                const qName = QUESTIONS[qid] || qid;
+                                const pips = [];
+                                for (let i = 1; i <= 5; i++) {
+                                    const activeClass = i <= score ? 'active' : '';
+                                    const levelClass = score <= 2 ? 'low' : (score <= 3 ? 'mid' : '');
+                                    pips.push(`<div class="pip ${activeClass} ${levelClass}"></div>`);
+                                }
+                                return `
+                                    <div class="survey-item">
+                                        <div class="survey-q-text" title="${qName}">${qName}</div>
+                                        <div class="d-flex align-items-center">
+                                            <div class="pip-container">${pips.join('')}</div>
+                                            <span class="survey-score-text">${score}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            surveyHtml = `<div class="survey-grid">${items}</div>`;
+                        } catch (e) {
+                            console.error('Failed to parse survey:', e);
+                        }
+                    }
+
                     return `
                         <tr>
                             <td>
-                                <div class="fw-600">${dStr}</div>
-                                <div class="text-xs text-muted mt-1">${tStr}</div>
+                                <div style="font-weight:600;">${dStr}</div>
+                                <div style="font-size:11px; color:var(--text-muted);">${tStr}</div>
                             </td>
                             <td>
-                                <div class="fw-600">${escapeHtml(name)}</div>
-                                <div class="text-xs text-secondary mt-1">${escapeHtml(email)}</div>
+                                <div style="font-weight:600; color:var(--brand-emerald);">${escapeHtml(name)}</div>
+                                <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(email)}</div>
                             </td>
                             <td>
-                                <div class="nm-inset" style="padding:12px; border-radius:var(--radius-md); font-size:13px; line-height:1.6; color:rgba(255,255,255,0.85); white-space:pre-wrap;">${formattedMsg}</div>
+                                <div style="line-height:1.5; color:#000;">${formattedMsg}</div>
+                                ${surveyHtml}
                             </td>
                         </tr>
                     `;

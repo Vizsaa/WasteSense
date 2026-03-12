@@ -1,11 +1,12 @@
 const db = require('../config/db.config');
 
 class Feedback {
-  static async create({ user_id, message }) {
-    const sql = `INSERT INTO feedback (user_id, message) VALUES (?, ?)`;
+  static async create({ user_id, message, likert_responses }) {
+    const sql = `INSERT INTO feedback (user_id, message, likert_responses) VALUES (?, ?, ?)`;
     const safeMessage = String(message || '').trim();
+    const safeLikert = likert_responses ? JSON.stringify(likert_responses) : null;
 
-    const result = await db.execute(sql, [user_id, safeMessage]);
+    const result = await db.execute(sql, [user_id, safeMessage, safeLikert]);
     return await this.findById(result.insertId);
   }
 
